@@ -257,7 +257,7 @@ export const register: Register = on => {
   // ---------- Jede Nachricht: Skills mitteilen, Fortschritt starten ----------
 
   on('prompt.submit', async ($, e, next) => {
-    if (e.command !== undefined) {
+    if (e.command !== undefined || e.text.trim().startsWith('/')) {
       return next(e)
     }
     const s = await read($, settings)
