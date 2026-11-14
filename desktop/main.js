@@ -1,7 +1,7 @@
 // Snake-Desktop: lässt die Snake-Hub-Hintergründe über den ganzen Bildschirm fallen.
 // Ein durchsichtiges Fenster pro Bildschirm, immer im Vordergrund, alle Klicks gehen durch.
 
-const { app, BrowserWindow, Tray, Menu, screen, nativeTheme, nativeImage } = require('electron')
+const { app, BrowserWindow, Tray, Menu, screen, nativeTheme, nativeImage, ipcMain } = require('electron')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
@@ -64,7 +64,7 @@ function fensterBauen() {
     const w = new BrowserWindow({
       x: d.bounds.x, y: d.bounds.y, width: d.bounds.width, height: d.bounds.height,
       transparent: true, frame: false, resizable: false, movable: false, focusable: false,
-      skipTaskbar: true, hasShadow: false, show: false, fullscreenable: false,
+      skipTaskbar: true, hasShadow: false, show: false, fullscreenable: false, enableLargerThanScreen: true, thickFrame: false,
       backgroundColor: '#00000000',
       webPreferences: { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false },
     })
@@ -74,6 +74,9 @@ function fensterBauen() {
     w.setIgnoreMouseEvents(true, { forward: true })
     w.loadFile(path.join(__dirname, 'overlay.html'))
     w.webContents.on('did-finish-load', () => anwenden())
+    // Windows verkleinert neue Fenster auf den Bereich ohne Taskleiste: Größe danach erzwingen.
+    w.on('show', () => w.setBounds(d.bounds))
+    w.__bounds = d.bounds
     return w
   })
 }
@@ -104,6 +107,17 @@ if (!app.requestSingleInstanceLock()) {
     fensterBauen()
     menue()
 
+    // Maus direkt über einem Blatt: Fenster nimmt kurz Klicks an, sonst gehen sie durch.
+    ipcMain.on('fangen', (e, an) => {
+      const w = BrowserWindow.fromWebContents(e.sender)
+      if (w === null || w.isDestroyed()) return
+      if (an) {
+        w.setIgnoreMouseEvents(false)
+      } else {
+        w.setIgnoreMouseEvents(true, { forward: true })
+      }
+    })
+
     // Der Snake-Hub in Claude schreibt dieselbe Datei: Änderungen dort gelten sofort hier.
     fs.mkdirSync(DIR, { recursive: true })
     fs.watchFile(FILE, { interval: 1000 }, () => {
@@ -114,6 +128,10 @@ if (!app.requestSingleInstanceLock()) {
     setInterval(() => {
       for (const w of windows) {
         if (!w.isDestroyed() && w.isVisible()) {
+          const b = w.getBounds()
+          if (b.height !== w.__bounds.height || b.width !== w.__bounds.width || b.y !== w.__bounds.y) {
+            w.setBounds(w.__bounds)
+          }
           w.setAlwaysOnTop(true, 'screen-saver', 1)
           w.moveTop()
         }

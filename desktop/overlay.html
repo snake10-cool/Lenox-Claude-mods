@@ -5,13 +5,14 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'">
 <title>Snake-Desktop</title>
 <style>
-  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; pointer-events: none; }
+  html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
   #szene, #szene svg { position: fixed; inset: 0; width: 100%; height: 100%; }
   #szene { transition: opacity 1.2s ease; }
   /* Auf dem Desktop nur die bewegten Teile: kein Himmel, keine Hügel, Bäume oder Wellen. */
   #szene svg > rect:first-of-type, .hill, .pile, .snowg, .p1, .p2, .w1, .w2, .w3, .moon, .moonbite, .logs, .fl, ellipse, circle[fill] { display: none; }
   .star, path[stroke-width="10"] { display: none; }
-  .hz { pointer-events: all; }
+  /* Hier übernimmt die Physik unten, die CSS-Zonen aus Claude braucht es nicht. */
+  .hz { display: none; }
 </style>
 </head>
 <body>
@@ -19,10 +20,90 @@
 <script>
   const box = document.getElementById('szene')
   const DECKKRAFT = { dezent: 0.45, normal: 0.75, kraeftig: 1 }
-  window.snake.onSzene(({ svg, staerke }) => {
-    box.innerHTML = svg
+  const RADIUS = 55        // ab hier spürt ein Blatt die Maus (Pixel)
+  const FANG = 22          // so nah: das Blatt kann angeklickt werden
+  let teile = []
+  let svg = null
+  let maus = { x: -999, y: -999, vx: 0, vy: 0, zeit: 0 }
+  let gefangen = null
+
+  window.snake.onSzene(({ svg: quelle, staerke }) => {
+    box.innerHTML = quelle
     box.style.opacity = String(DECKKRAFT[staerke] ?? 0.75)
+    svg = box.querySelector('svg')
+    teile = [...box.querySelectorAll('.mv')].map(el => ({ el, bod: el.querySelector('.bod') || el, ox: 0, oy: 0, vx: 0, vy: 0, rot: 0, vr: 0 }))
   })
+
+  window.addEventListener('mousemove', e => {
+    const jetzt = performance.now()
+    const dt = Math.max(8, jetzt - maus.zeit)
+    maus = { x: e.clientX, y: e.clientY, vx: (e.clientX - maus.x) / dt * 16, vy: (e.clientY - maus.y) / dt * 16, zeit: jetzt }
+  })
+
+  // Klick auf ein Blatt: kräftiger Schubs weg von der Maus, mit Drehung.
+  window.addEventListener('mousedown', () => {
+    if (gefangen === null) return
+    const t = gefangen
+    const r = t.bod.getBoundingClientRect()
+    const dx = r.x + r.width / 2 - maus.x, dy = r.y + r.height / 2 - maus.y
+    const l = Math.hypot(dx, dy) || 1
+    t.vx += (dx / l) * 14
+    t.vy += (dy / l) * 10 - 4
+    t.vr += (dx >= 0 ? 1 : -1) * 18
+    loslassen()
+  })
+
+  function loslassen() {
+    gefangen = null
+    window.snake.fangen(false)
+  }
+
+  function schritt() {
+    const aktiv = performance.now() - maus.zeit < 1500
+    const skala = svg ? svg.getScreenCTM()?.a || 1 : 1
+    let naechstes = null, naechsteD = Infinity
+
+    for (const t of teile) {
+      if (aktiv) {
+        const r = t.bod.getBoundingClientRect()
+        const cx = r.x + r.width / 2, cy = r.y + r.height / 2
+        const d = Math.hypot(cx - maus.x, cy - maus.y)
+        if (d < naechsteD) { naechsteD = d; naechstes = t }
+        if (d < RADIUS) {
+          // Richtung: wie die Maus sich bewegt; steht sie, dann einfach weg von ihr.
+          const tempo = Math.hypot(maus.vx, maus.vy)
+          const rx = tempo > 0.5 ? maus.vx / tempo : (cx - maus.x) / (d || 1)
+          const ry = tempo > 0.5 ? maus.vy / tempo : (cy - maus.y) / (d || 1)
+          const kraft = (1 - d / RADIUS) * Math.min(1.6, 0.5 + tempo * 0.08)
+          t.vx += rx * kraft
+          t.vy += ry * kraft * 0.6
+          t.vr += rx * kraft * 1.5
+        }
+      }
+      // Weich ausrollen, dann ganz langsam zurück in die eigene Bahn.
+      t.vx *= 0.9; t.vy *= 0.9; t.vr *= 0.9
+      t.ox = (t.ox + t.vx) * 0.997
+      t.oy = (t.oy + t.vy) * 0.997
+      t.rot = (t.rot + t.vr) * 0.995
+      if (Math.abs(t.ox) + Math.abs(t.oy) + Math.abs(t.rot) > 0.05) {
+        t.el.style.transform = `translate(${(t.ox / skala).toFixed(2)}px, ${(t.oy / skala).toFixed(2)}px)`
+        t.bod.style.transformBox = 'fill-box'
+        t.bod.style.transformOrigin = 'center'
+        t.bod.style.transform = `rotate(${t.rot.toFixed(1)}deg)`
+      }
+    }
+
+    // Nur direkt über einem Blatt nimmt das Fenster Klicks an, sonst gehen sie durch.
+    const sollFangen = aktiv && naechstes !== null && naechsteD < FANG
+    if (sollFangen && gefangen !== naechstes) {
+      gefangen = naechstes
+      window.snake.fangen(true)
+    } else if (!sollFangen && gefangen !== null) {
+      loslassen()
+    }
+    requestAnimationFrame(schritt)
+  }
+  requestAnimationFrame(schritt)
 </script>
 </body>
 </html>

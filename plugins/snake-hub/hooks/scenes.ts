@@ -33,8 +33,8 @@ function sky(id: string, light: [string, string], dark: [string, string]): { def
 // Vier unsichtbare Dreiecke um jedes Teilchen: Von welcher Seite die Maus kommt,
 // in die Gegenrichtung wird es ein Stück weggeschubst (reines CSS, kein Skript).
 const HIT =
-  `<polygon class="hz hl" points="-26,-26 0,0 -26,26"/><polygon class="hz hr" points="26,-26 0,0 26,26"/>` +
-  `<polygon class="hz ht" points="-26,-26 0,0 26,-26"/><polygon class="hz hb" points="-26,26 0,0 26,26"/>`
+  `<polygon class="hz hl" points="-40,-40 0,0 -40,40"/><polygon class="hz hr" points="40,-40 0,0 40,40"/>` +
+  `<polygon class="hz ht" points="-40,-40 0,0 40,-40"/><polygon class="hz hb" points="-40,40 0,0 40,40"/>`
 
 // Ein Teilchen, das von oben nach unten fällt und dabei schwankt und sich dreht.
 function fallers(r: () => number, count: number, shape: (i: number) => string, cls: string, minDur: number, maxDur: number): string {
@@ -47,8 +47,8 @@ function fallers(r: () => number, count: number, shape: (i: number) => string, c
     const delay = (-r() * Number(dur)).toFixed(1)
     const scale = (0.6 + r() * 0.9).toFixed(2)
     out +=
-      `<g transform="translate(${x.toFixed(0)} -60)"><g class="${cls}" style="animation-duration:${dur}s;animation-delay:${delay}s">` +
-      `<g class="sway" style="animation-duration:${(3 + r() * 3).toFixed(1)}s;animation-delay:${delay}s"><g transform="scale(${scale})">${HIT}<g class="bod">${shape(i)}</g></g></g></g></g>`
+      `<g transform="translate(${x.toFixed(0)} -60)"><g class="mv"><g class="${cls}" style="animation-duration:${dur}s;animation-delay:${delay}s">${HIT}<g class="bod">` +
+      `<g class="sway" style="animation-duration:${(3 + r() * 3).toFixed(1)}s;animation-delay:${delay}s"><g transform="scale(${scale})">${shape(i)}</g></g></g></g></g></g>`
   }
   return out
 }
@@ -56,10 +56,10 @@ function fallers(r: () => number, count: number, shape: (i: number) => string, c
 const FALL_STYLE =
   `.fall{animation:fall linear infinite}` +
   `.hz{fill:transparent;pointer-events:all}.bod{pointer-events:none;transition:transform 0s 100000s}` +
-  `.hl:hover~.bod{transform:translate(46px,-8px) rotate(35deg);transition:transform .8s cubic-bezier(.25,1.7,.45,1)}` +
-  `.hr:hover~.bod{transform:translate(-46px,-8px) rotate(-35deg);transition:transform .8s cubic-bezier(.25,1.7,.45,1)}` +
-  `.ht:hover~.bod{transform:translate(8px,42px) rotate(20deg);transition:transform .8s cubic-bezier(.25,1.7,.45,1)}` +
-  `.hb:hover~.bod{transform:translate(-8px,-42px) rotate(-20deg);transition:transform .8s cubic-bezier(.25,1.7,.45,1)}` +
+  `.hl:hover~.bod{transform:translate(70px,-10px);transition:transform 1.1s cubic-bezier(.22,1.25,.4,1)}` +
+  `.hr:hover~.bod{transform:translate(-70px,-10px);transition:transform 1.1s cubic-bezier(.22,1.25,.4,1)}` +
+  `.ht:hover~.bod{transform:translate(10px,60px);transition:transform 1.1s cubic-bezier(.22,1.25,.4,1)}` +
+  `.hb:hover~.bod{transform:translate(-10px,-60px);transition:transform 1.1s cubic-bezier(.22,1.25,.4,1)}` +
   `@keyframes fall{from{transform:translateY(0)}to{transform:translateY(${H + 140}px)}}` +
   `.sway{animation:sway ease-in-out infinite alternate}` +
   `@keyframes sway{from{transform:translateX(-30px) rotate(-35deg)}to{transform:translateX(30px) rotate(40deg)}}`
