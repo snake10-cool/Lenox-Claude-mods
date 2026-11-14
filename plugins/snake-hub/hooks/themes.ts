@@ -32,4 +32,28 @@ export const THEME_SEEDS: Record<string, Seed> = {
     light: { 'surface-0': '#d8e6cc', 'surface-1': '#e3eed9', 'surface-2': '#eff6e8', 'text-primary': '#1b2417', 'text-secondary': '#3f4c38', 'text-muted': '#56634d' },
     dark: { 'surface-0': '#0d1a0e', 'surface-1': '#132415', 'surface-2': '#192d1b', 'surface-3': '#1e3421', 'text-primary': '#e7eee2', 'text-secondary': '#c4d1bb', 'text-muted': '#9eae93' },
   },
+  herbstnacht: {
+    name: 'Herbstnacht', emoji: '🍁',
+    roles: { accent: '#d0702a', danger: '#c0402f', success: '#6b8a3a', warning: '#c08a1e', pro: '#9a5a8a' },
+    light: { 'surface-0': '#e8d6c6', 'surface-1': '#efe0d2', 'surface-2': '#f6ebe0', 'text-primary': '#2a1a14', 'text-secondary': '#523a2e', 'text-muted': '#6a5044' },
+    dark: { 'surface-0': '#170d12', 'surface-1': '#21131a', 'surface-2': '#2b1a21', 'surface-3': '#331f27', 'text-primary': '#f1e2d6', 'text-secondary': '#d4bfb0', 'text-muted': '#b09a8c' },
+  },
+  schnee: {
+    name: 'Schnee', emoji: '❄️',
+    roles: { accent: '#3a78b8', danger: '#b8402f', success: '#3a8460', warning: '#a87a1a', pro: '#6a5ab0' },
+    light: { 'surface-0': '#e4ebf3', 'surface-1': '#edf2f8', 'surface-2': '#f6f9fc', 'text-primary': '#16202c', 'text-secondary': '#3a4a5c', 'text-muted': '#516174' },
+    dark: { 'surface-0': '#0e1622', 'surface-1': '#142030', 'surface-2': '#1a293c', 'surface-3': '#1f3044', 'text-primary': '#e6eef8', 'text-secondary': '#c2d0e2', 'text-muted': '#9aabc2' },
+  },
+  regen: {
+    name: 'Regen', emoji: '🌧️',
+    roles: { accent: '#4a7a9c', danger: '#b8452f', success: '#3f8060', warning: '#a87c1e', pro: '#6a5aa0' },
+    light: { 'surface-0': '#dde3e9', 'surface-1': '#e6ebf0', 'surface-2': '#f0f3f6', 'text-primary': '#1a2028', 'text-secondary': '#3e4854', 'text-muted': '#54606c' },
+    dark: { 'surface-0': '#11161c', 'surface-1': '#171e26', 'surface-2': '#1d2630', 'surface-3': '#222c37', 'text-primary': '#e4e9ef', 'text-secondary': '#c0c9d3', 'text-muted': '#98a4b1' },
+  },
+  lagerfeuer: {
+    name: 'Lagerfeuer', emoji: '🔥',
+    roles: { accent: '#e0682a', danger: '#c8402a', success: '#6a8a3a', warning: '#d09a20', pro: '#a05a7a' },
+    light: { 'surface-0': '#f0dcc4', 'surface-1': '#f5e5d1', 'surface-2': '#faefe2', 'text-primary': '#2a1a10', 'text-secondary': '#54402c', 'text-muted': '#6c5440' },
+    dark: { 'surface-0': '#140c08', 'surface-1': '#1e120b', 'surface-2': '#28180e', 'surface-3': '#301d11', 'text-primary': '#f6e6d4', 'text-secondary': '#dcc4a8', 'text-muted': '#b89c80' },
+  },
 }

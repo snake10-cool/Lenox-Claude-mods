@@ -38,8 +38,22 @@ const KNOEPFE: { label: string; prompt: string }[] = [
   { label: '💡 Ideen', prompt: 'Schlage mir 5 kurze Ideen vor, was ich am aktuellen Projekt als Nächstes verbessern könnte.' },
 ]
 
+const MODI: { id: string; name: string }[] = [
+  { id: 'dunkel', name: '🌑 Dunkel' },
+  { id: 'hell', name: '☀️ Hell' },
+  { id: 'auto', name: '🖥️ Wie Windows' },
+]
+
+const STAERKEN: { id: string; name: string; glass: { blur: number; opacity: number } }[] = [
+  { id: 'dezent', name: '🌫️ Dezent', glass: { blur: 8, opacity: 0.6 } },
+  { id: 'normal', name: '🍂 Normal', glass: { blur: 3, opacity: 0.4 } },
+  { id: 'kraeftig', name: '🍁 Kräftig', glass: { blur: 0, opacity: 0.18 } },
+]
+
 const DEFAULTS: HubSettings = {
   theme: 'herbst',
+  modus: 'dunkel',
+  staerke: 'normal',
   mods: { szenen: true, fortschritt: true, leiste: true, aktivitaet: true, statistik: true, knoepfe: true, uhr: false, pause: false, schutz: true, fertig: true },
   skills: { 'spiel-bauen': true, 'bug-jagd': true, 'flutter-release': true, 'einfach-erklaert': true, 'game-guide': true, 'kurz-knapp': false, 'deutsch-immer': true },
 }
@@ -61,7 +75,7 @@ const SCHUTZ = /(^|[\\/])(\.env(\..*)?|key\.properties|.*\.jks|.*\.keystore|.*\.
 
 const LEER: Fortschritt = { prozent: 0, aufgabe: '', schritt: '', laeuft: false, manuell: false }
 const fortschritt = atom({ plugin: 'snake-hub', key: 'fortschritt' } as const, LEER, { shape: 'fortschritt-2' })
-const settings = atom({ plugin: 'snake-hub', key: 'settings' } as const, DEFAULTS, { shape: 'settings-2' })
+const settings = atom({ plugin: 'snake-hub', key: 'settings' } as const, DEFAULTS, { shape: 'settings-3' })
 const aktivitaet = atom({ plugin: 'snake-hub', key: 'aktivitaet' } as const, [] as Aktivitaet[], { shape: 'aktivitaet-1' })
 const statistik = atom({ plugin: 'snake-hub', key: 'statistik' } as const, { antworten: 0, werkzeuge: 0, dateien: [], start: 0 } as Statistik, { shape: 'statistik-1' })
 
@@ -105,6 +119,8 @@ function merge(saved: unknown): HubSettings {
   const s = (saved ?? {}) as Partial<HubSettings>
   return {
     theme: typeof s.theme === 'string' ? s.theme : DEFAULTS.theme,
+    modus: typeof s.modus === 'string' ? s.modus : DEFAULTS.modus,
+    staerke: typeof s.staerke === 'string' ? s.staerke : DEFAULTS.staerke,
     mods: { ...DEFAULTS.mods, ...(s.mods ?? {}) },
     skills: { ...DEFAULTS.skills, ...(s.skills ?? {}) },
   }
@@ -116,9 +132,11 @@ async function applyTheme($: EngineInterface, s: HubSettings): Promise<string> {
     await $.theme.clear()
     return 'Theme aus (Standard-Aussehen der App)'
   }
+  const glass = (STAERKEN.find(x => x.id === s.staerke) ?? STAERKEN[1])?.glass ?? { blur: 3, opacity: 0.4 }
+  const scheme = s.modus === 'dunkel' ? { overrideColorScheme: 'dark' as const } : s.modus === 'hell' ? { overrideColorScheme: 'light' as const } : {}
   const look: ThemeSetArgs = s.mods.szenen && SCENES[s.theme] !== undefined
-    ? { colors, backdrop: { scene: s.theme, glass: { blur: 6, opacity: 0.55 } } }
-    : { colors }
+    ? { colors, backdrop: { scene: s.theme, glass }, ...scheme }
+    : { colors, ...scheme }
   const set = await $.theme.set(look)
   const t = THEME_SEEDS[s.theme]
   const name = `${t?.emoji ?? ''} ${t?.name ?? s.theme}`
@@ -176,7 +194,9 @@ export const register: Register = on => {
     applyTimers($, s)
 
     await $.command.register({ name: 'hub', description: 'Öffnet den Snake-Hub und zeigt, was an und aus ist' })
-    await $.command.register({ name: 'look', description: 'Theme wechseln: herbst, sakura, mitternacht, ozean, wald oder aus' })
+    await $.command.register({ name: 'look', description: 'Theme wechseln: herbst, herbstnacht, sakura, mitternacht, ozean, wald, schnee, regen, lagerfeuer oder aus' })
+    await $.command.register({ name: 'modus', description: 'Hell oder dunkel: dunkel, hell oder auto' })
+    await $.command.register({ name: 'blaetter', description: 'Wie stark der Hintergrund zu sehen ist: dezent, normal oder kraeftig' })
     await $.command.register({ name: 'mod', description: 'Mod an/aus: szenen, fortschritt, leiste, aktivitaet, statistik, knoepfe, uhr, pause, schutz, fertig' })
     await $.command.register({ name: 'skill', description: 'Skill an/aus: spiel-bauen, bug-jagd, flutter-release, einfach-erklaert, game-guide, kurz-knapp, deutsch-immer' })
     await $.command.register({ name: 'mehr-details', description: 'Claude fügt dem Projekt mehr passende Details hinzu' })
@@ -224,6 +244,28 @@ export const register: Register = on => {
     const s = await save($, x => ({ ...x, theme: wahl }))
     return { text: await applyTheme($, s) }
   }).catch(() => ({ text: 'Theme konnte nicht gewechselt werden.' }))
+
+  on('command.run', { command: 'modus' }, async ($, e) => {
+    const wahl = (e.args ?? '').trim().toLowerCase()
+    const m = MODI.find(x => x.id === wahl)
+    if (m === undefined) {
+      return { text: `Möglich: ${MODI.map(x => x.id).join(', ')}` }
+    }
+    const s = await save($, x => ({ ...x, modus: wahl }))
+    await applyTheme($, s)
+    return { text: `Modus: ${m.name}` }
+  })
+
+  on('command.run', { command: 'blaetter' }, async ($, e) => {
+    const wahl = (e.args ?? '').trim().toLowerCase().replace('ä', 'ae')
+    const st = STAERKEN.find(x => x.id === wahl)
+    if (st === undefined) {
+      return { text: `Möglich: ${STAERKEN.map(x => x.id).join(', ')}` }
+    }
+    const s = await save($, x => ({ ...x, staerke: wahl }))
+    await applyTheme($, s)
+    return { text: `Hintergrund: ${st.name}` }
+  })
 
   on('command.run', { command: 'mod' }, async ($, e) => {
     const id = (e.args ?? '').trim().toLowerCase()
@@ -387,6 +429,10 @@ export const register: Register = on => {
       const x = await save($, y => ({ ...y, theme: id }))
       await applyTheme($, x)
     }
+    const setSetting = (patch: Partial<HubSettings>) => async () => {
+      const x = await save($, y => ({ ...y, ...patch }))
+      await applyTheme($, x)
+    }
     const toggleMod = (id: string) => async () => {
       const x = await save($, y => ({ ...y, mods: { ...y.mods, [id]: !y.mods[id] } }))
       applyTimers($, x)
@@ -455,6 +501,18 @@ export const register: Register = on => {
             <Button key={`t-${id}`} label={`${s.theme === id ? '●' : '○'} ${th.emoji} ${th.name}`} onPress={() => void setTheme(id)()} />
           ))}
           <Button key="t-aus" label={`${s.theme === 'aus' ? '●' : '○'} Aus`} onPress={() => void setTheme('aus')()} />
+        </Box>
+
+        <Box flexDirection="column" borderStyle="round" paddingX={1}>
+          <Text size="heading" weight="bold">🌓 Hell oder dunkel</Text>
+          {MODI.map(m => (
+            <Button key={`d-${m.id}`} label={`${s.modus === m.id ? '●' : '○'} ${m.name}`} onPress={() => void setSetting({ modus: m.id })()} />
+          ))}
+          <Text size="heading" weight="bold">🍃 Hintergrund-Stärke</Text>
+          {STAERKEN.map(m => (
+            <Button key={`g-${m.id}`} label={`${s.staerke === m.id ? '●' : '○'} ${m.name}`} onPress={() => void setSetting({ staerke: m.id })()} />
+          ))}
+          <Text dimColor size="caption">Fahr mit der Maus über Blätter, Blüten oder Flocken.</Text>
         </Box>
 
         <Box flexDirection="column" borderStyle="round" paddingX={1}>

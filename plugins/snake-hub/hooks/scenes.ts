@@ -49,31 +49,46 @@ function fallers(r: () => number, count: number, shape: (i: number) => string, c
 
 const FALL_STYLE =
   `.fall{animation:fall linear infinite}` +
+  `.bit{transform-box:fill-box;transform-origin:center;transition:transform .9s ease,filter .9s ease}` +
+  `.bit:hover{transform:scale(2.2) rotate(200deg);filter:brightness(1.35) saturate(1.2)}` +
   `@keyframes fall{from{transform:translateY(0)}to{transform:translateY(${H + 140}px)}}` +
   `.sway{animation:sway ease-in-out infinite alternate}` +
   `@keyframes sway{from{transform:translateX(-30px) rotate(-35deg)}to{transform:translateX(30px) rotate(40deg)}}`
 
-function herbst(): string {
-  const r = rng(7)
-  const s = sky('herbst', ['#f6e4c8', '#e9c9a0'], ['#2a1c12', '#1a120c'])
-  const colors = ['#d9622b', '#e0912f', '#b8461f', '#c97a1e', '#a5381c']
+function herbst(nacht = false): string {
+  const r = rng(nacht ? 9 : 7)
+  const s = nacht
+    ? sky('herbstnacht', ['#3a2a3a', '#24161c'], ['#170d14', '#0d0709'])
+    : sky('herbst', ['#f6e4c8', '#e9c9a0'], ['#2a1c12', '#1a120c'])
   const leaf = (i: number) =>
-    `<path d="M0 -18 C12 -12 14 4 0 18 C-14 4 -12 -12 0 -18 Z M0 -18 L0 18" fill="${colors[i % colors.length]}" stroke="#7a3412" stroke-width="1" opacity="0.85"/>`
+    `<path class="bit l${i % 5}" d="M0 -18 C12 -12 14 4 0 18 C-14 4 -12 -12 0 -18 Z M0 -18 L0 18" stroke-width="1"/>`
   const hills =
     `<path d="M0 880 C300 820 520 900 800 870 C1100 840 1300 900 1600 860 L1600 1000 L0 1000 Z" class="hill"/>` +
-    `<ellipse cx="180" cy="905" rx="190" ry="34" fill="#d06a2a" opacity="0.55"/><ellipse cx="1420" cy="910" rx="220" ry="36" fill="#c4581f" opacity="0.5"/>`
-  return wrap('herbst', s.defs, s.style + FALL_STYLE + `.hill{fill:#d9a46c;opacity:.55}@media (prefers-color-scheme: dark){.hill{fill:#3a2414;opacity:.8}}`, hills + fallers(r, 34, leaf, 'fall', 11, 22))
+    `<ellipse cx="180" cy="905" rx="190" ry="34" class="pile"/><ellipse cx="1420" cy="910" rx="220" ry="36" class="pile"/>`
+  const light = `.l0{fill:#d9622b}.l1{fill:#e0912f}.l2{fill:#b8461f}.l3{fill:#c97a1e}.l4{fill:#a5381c}.bit{stroke:#7a3412;opacity:.9}.hill{fill:#d9a46c;opacity:.55}.pile{fill:#d06a2a;opacity:.55}`
+  const dark = `.l0{fill:#8a3a1c}.l1{fill:#9c6420}.l2{fill:#6e2a16}.l3{fill:#a0521a}.l4{fill:#5a2414}.bit{stroke:#2a1208;opacity:.95}.hill{fill:#2e1c10;opacity:.9}.pile{fill:#5a2a12;opacity:.8}`
+  let extra = ''
+  if (nacht) {
+    for (let i = 0; i < 40; i++) {
+      extra += `<circle cx="${(r() * W).toFixed(0)}" cy="${(r() * 500).toFixed(0)}" r="${(0.8 + r() * 1.4).toFixed(1)}" class="star" style="animation-duration:${(2 + r() * 4).toFixed(1)}s;animation-delay:${(-r() * 6).toFixed(1)}s"/>`
+    }
+    extra += `<circle cx="1380" cy="160" r="54" fill="#e9d9b0" opacity=".85"/>`
+  }
+  const style =
+    s.style + FALL_STYLE + (nacht ? dark : light + `@media (prefers-color-scheme: dark){${dark}}`) +
+    `.star{fill:#f3e6c8;animation:tw ease-in-out infinite alternate}@keyframes tw{from{opacity:.1}to{opacity:.8}}`
+  return wrap(nacht ? 'herbstnacht' : 'herbst', s.defs, style, extra + hills + fallers(r, 46, leaf, 'fall', 11, 22))
 }
 
 function sakura(): string {
   const r = rng(11)
   const s = sky('sakura', ['#fbe6ee', '#f3cddb'], ['#2a1620', '#170c12'])
   const petal = (i: number) =>
-    `<path d="M0 -10 C8 -10 10 0 0 10 C-10 0 -8 -10 0 -10 Z" fill="${i % 3 === 0 ? '#f7a8c4' : i % 3 === 1 ? '#f4bfd3' : '#ec8fb2'}" opacity="0.9"/>`
+    `<path class="bit p${i % 3}" d="M0 -10 C8 -10 10 0 0 10 C-10 0 -8 -10 0 -10 Z"/>`
   const branch =
     `<path d="M-20 140 C140 120 260 60 420 70 M200 108 C240 60 300 40 360 30" stroke="#5a3a3f" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.75"/>` +
     Array.from({ length: 16 }, (_, i) => `<circle cx="${(40 + i * 24 + r() * 20).toFixed(0)}" cy="${(70 + r() * 70).toFixed(0)}" r="${(10 + r() * 12).toFixed(0)}" fill="#f2a3c0" opacity="0.7"/>`).join('')
-  return wrap('sakura', s.defs, s.style + FALL_STYLE, branch + fallers(r, 40, petal, 'fall', 13, 26))
+  return wrap('sakura', s.defs, s.style + FALL_STYLE + `.p0{fill:#f7a8c4}.p1{fill:#f4bfd3}.p2{fill:#ec8fb2}.bit{opacity:.9}@media (prefers-color-scheme: dark){.p0{fill:#b0577a}.p1{fill:#c47895}.p2{fill:#8e3f60}}`, branch + fallers(r, 48, petal, 'fall', 13, 26))
 }
 
 function mitternacht(): string {
@@ -126,14 +141,68 @@ function wald(): string {
   let flies = ''
   for (let i = 0; i < 30; i++) {
     const x = r() < 0.5 ? r() * 480 : W - r() * 480
-    flies += `<circle cx="${x.toFixed(0)}" cy="${(450 + r() * 480).toFixed(0)}" r="${(2 + r() * 2.5).toFixed(1)}" class="fly" style="animation-duration:${(3 + r() * 4).toFixed(1)}s;animation-delay:${(-r() * 7).toFixed(1)}s"/>`
+    flies += `<circle cx="${x.toFixed(0)}" cy="${(450 + r() * 480).toFixed(0)}" r="${(2 + r() * 2.5).toFixed(1)}" class="bit fly" style="animation-duration:${(3 + r() * 4).toFixed(1)}s;animation-delay:${(-r() * 7).toFixed(1)}s"/>`
   }
   const style =
-    s.style +
+    s.style + `.bit{transform-box:fill-box;transform-origin:center;transition:transform .9s ease}.bit:hover{transform:scale(3)}` +
     `.p1{fill:#4f7a45;opacity:.55}.p2{fill:#2f5a2c;opacity:.6}` +
     `.fly{fill:#d7c84a;animation:fly ease-in-out infinite alternate}@keyframes fly{from{opacity:.1;transform:translate(0,0)}to{opacity:.95;transform:translate(14px,-22px)}}` +
     `@media (prefers-color-scheme: dark){.p1{fill:#1d3320;opacity:.9}.p2{fill:#14261a;opacity:.95}.fly{fill:#f3e66a}}`
   return wrap('wald', s.defs, style, trees + flies)
+}
+
+
+function schnee(): string {
+  const r = rng(53)
+  const s = sky('schnee', ['#eef3f8', '#d7e2ee'], ['#0e1622', '#18243a'])
+  const flake = () => `<circle class="bit flake" r="${(3 + r() * 5).toFixed(1)}"/>`
+  const ground = `<path d="M0 900 C260 870 520 920 800 895 C1080 870 1340 915 1600 890 L1600 1000 L0 1000 Z" class="snowg"/>`
+  const style = s.style + FALL_STYLE +
+    `.flake{fill:#ffffff;stroke:#b9c8da;stroke-width:1;opacity:.95}.snowg{fill:#ffffff;opacity:.8}` +
+    `@media (prefers-color-scheme: dark){.flake{fill:#dfe8f5;stroke:none;opacity:.8}.snowg{fill:#2a3a52;opacity:.9}}`
+  return wrap('schnee', s.defs, style, ground + fallers(r, 70, flake, 'fall', 16, 32))
+}
+
+function regen(): string {
+  const r = rng(61)
+  const s = sky('regen', ['#dfe5ea', '#c3ccd5'], ['#11161c', '#1b232c'])
+  let drops = ''
+  for (let i = 0; i < 110; i++) {
+    const x = r() * (W + 300)
+    drops += `<line x1="${x.toFixed(0)}" y1="-40" x2="${(x - 14).toFixed(0)}" y2="0" class="drop" style="animation-duration:${(0.7 + r() * 0.6).toFixed(2)}s;animation-delay:${(-r() * 2).toFixed(2)}s"/>`
+  }
+  let ripples = ''
+  for (let i = 0; i < 14; i++) {
+    const x = r() < 0.5 ? r() * 420 : W - r() * 420
+    ripples += `<ellipse cx="${x.toFixed(0)}" cy="${(930 + r() * 50).toFixed(0)}" rx="18" ry="5" class="rip" style="animation-delay:${(-r() * 2.4).toFixed(2)}s"/>`
+  }
+  const style = s.style +
+    `.drop{stroke:#7a8a9c;stroke-width:1.6;opacity:.55;animation:rain linear infinite}@keyframes rain{from{transform:translate(0,0)}to{transform:translate(-140px,${H + 80}px)}}` +
+    `.rip{fill:none;stroke:#7a8a9c;stroke-width:1.5;transform-box:fill-box;transform-origin:center;animation:rip 2.4s ease-out infinite}@keyframes rip{from{transform:scale(.2);opacity:.8}to{transform:scale(2.4);opacity:0}}` +
+    `@media (prefers-color-scheme: dark){.drop{stroke:#5d7088;opacity:.6}.rip{stroke:#5d7088}}`
+  return wrap('regen', s.defs, style, drops + ripples)
+}
+
+function lagerfeuer(): string {
+  const r = rng(71)
+  const s = sky('lagerfeuer', ['#f3e2cc', '#e7c49c'], ['#140c08', '#22120a'])
+  const fire = (x: number) =>
+    `<g transform="translate(${x} 960)"><ellipse rx="90" ry="14" class="logs"/>` +
+    `<path class="fl f1" d="M-46 0 C-60 -70 -10 -90 -18 -150 C20 -110 50 -80 40 0 Z"/>` +
+    `<path class="fl f2" d="M-20 0 C-30 -50 0 -70 4 -110 C24 -70 36 -50 26 0 Z"/>` +
+    `<path class="fl f3" d="M-8 0 C-14 -26 4 -40 6 -60 C16 -36 20 -20 14 0 Z"/></g>`
+  let sparks = ''
+  for (let i = 0; i < 40; i++) {
+    const base = i % 2 ? 160 : 1440
+    sparks += `<circle cx="${(base - 60 + r() * 120).toFixed(0)}" cy="930" r="${(1.5 + r() * 2.5).toFixed(1)}" class="bit spark" style="animation-duration:${(3 + r() * 4).toFixed(1)}s;animation-delay:${(-r() * 7).toFixed(1)}s"/>`
+  }
+  const style = s.style +
+    `.bit{transform-box:fill-box;transform-origin:center}` +
+    `.logs{fill:#4a2a18}.fl{transform-box:fill-box;transform-origin:bottom center;animation:flick ease-in-out infinite alternate}` +
+    `.f1{fill:#e2552a;animation-duration:.9s}.f2{fill:#f39a2b;animation-duration:.7s}.f3{fill:#ffd36a;animation-duration:.5s}` +
+    `@keyframes flick{from{transform:scaleY(.9) skewX(-3deg)}to{transform:scaleY(1.08) skewX(3deg)}}` +
+    `.spark{fill:#ffb347;animation:up linear infinite}@keyframes up{from{transform:translate(0,0);opacity:1}to{transform:translate(40px,-700px);opacity:0}}`
+  return wrap('lagerfeuer', s.defs, style, fire(160) + fire(1440) + sparks)
 }
 
 export const SCENES: Record<string, string> = {
@@ -142,6 +211,10 @@ export const SCENES: Record<string, string> = {
   mitternacht: mitternacht(),
   ozean: ozean(),
   wald: wald(),
+  herbstnacht: herbst(true),
+  schnee: schnee(),
+  regen: regen(),
+  lagerfeuer: lagerfeuer(),
 }
 
 export const SCENE_ALT: Record<string, string> = {
@@ -150,4 +223,8 @@ export const SCENE_ALT: Record<string, string> = {
   mitternacht: 'Funkelnde Sterne, Mondsichel und eine Sternschnuppe',
   ozean: 'Wellen ziehen vorbei, Luftblasen steigen auf',
   wald: 'Tannen am Rand, Glühwürmchen leuchten',
+  herbstnacht: 'Dunkle Herbstblätter fallen unter Mond und Sternen',
+  schnee: 'Schneeflocken fallen auf eine Schneedecke',
+  regen: 'Regen fällt schräg, unten bilden sich Pfützenringe',
+  lagerfeuer: 'Zwei Lagerfeuer flackern, Funken steigen auf',
 }
