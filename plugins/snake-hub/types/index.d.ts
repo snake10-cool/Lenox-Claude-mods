@@ -10,6 +10,7 @@ declare module 'claude-code' {
       settings: Shaped<HubSettings>
       aktivitaet: Shaped<Aktivitaet[]>
       statistik: Shaped<Statistik>
+      tab: Shaped<string>
     }
   }
 }

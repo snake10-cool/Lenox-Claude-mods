@@ -1,7 +1,7 @@
 {
   "name": "snake-desktop",
   "productName": "Snake-Desktop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lässt die Snake-Hub-Hintergründe (Blätter, Blüten, Schnee, Regen, Funken) über den ganzen Bildschirm fallen.",
   "main": "main.js",
   "license": "MIT",

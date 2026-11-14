@@ -68,9 +68,10 @@ function fensterBauen() {
       backgroundColor: '#00000000',
       webPreferences: { preload: path.join(__dirname, 'preload.js'), backgroundThrottling: false },
     })
-    w.setAlwaysOnTop(true, 'screen-saver')
+    w.setAlwaysOnTop(true, 'screen-saver', 1)
     w.setVisibleOnAllWorkspaces(true)
-    w.setIgnoreMouseEvents(true)
+    // Klicks gehen durch, aber Mausbewegungen kommen an: so können Blätter ausweichen.
+    w.setIgnoreMouseEvents(true, { forward: true })
     w.loadFile(path.join(__dirname, 'overlay.html'))
     w.webContents.on('did-finish-load', () => anwenden())
     return w
@@ -109,6 +110,15 @@ if (!app.requestSingleInstanceLock()) {
       settings = lesen()
       anwenden()
     })
+    // Windows schiebt die Taskleiste immer wieder nach vorn: regelmäßig wieder darüberlegen.
+    setInterval(() => {
+      for (const w of windows) {
+        if (!w.isDestroyed() && w.isVisible()) {
+          w.setAlwaysOnTop(true, 'screen-saver', 1)
+          w.moveTop()
+        }
+      }
+    }, 2000)
     screen.on('display-added', fensterBauen)
     screen.on('display-removed', fensterBauen)
     screen.on('display-metrics-changed', fensterBauen)

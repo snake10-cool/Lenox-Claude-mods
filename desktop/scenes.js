@@ -39,6 +39,7 @@ function sky(id, light, dark) {
     style: `.s0{stop-color:${light[0]}}.s1{stop-color:${light[1]}}@media (prefers-color-scheme: dark){.s0{stop-color:${dark[0]}}.s1{stop-color:${dark[1]}}}`
   };
 }
+const HIT = `<polygon class="hz hl" points="-26,-26 0,0 -26,26"/><polygon class="hz hr" points="26,-26 0,0 26,26"/><polygon class="hz ht" points="-26,-26 0,0 26,-26"/><polygon class="hz hb" points="-26,26 0,0 26,26"/>`;
 function fallers(r, count, shape, cls, minDur, maxDur) {
   let out = "";
   for (let i = 0; i < count; i++) {
@@ -47,18 +48,18 @@ function fallers(r, count, shape, cls, minDur, maxDur) {
     const dur = (minDur + r() * (maxDur - minDur)).toFixed(1);
     const delay = (-r() * Number(dur)).toFixed(1);
     const scale = (0.6 + r() * 0.9).toFixed(2);
-    out += `<g transform="translate(${x.toFixed(0)} -60)"><g class="${cls}" style="animation-duration:${dur}s;animation-delay:${delay}s"><g class="sway" style="animation-duration:${(3 + r() * 3).toFixed(1)}s;animation-delay:${delay}s"><g transform="scale(${scale})">${shape(i)}</g></g></g></g>`;
+    out += `<g transform="translate(${x.toFixed(0)} -60)"><g class="${cls}" style="animation-duration:${dur}s;animation-delay:${delay}s"><g class="sway" style="animation-duration:${(3 + r() * 3).toFixed(1)}s;animation-delay:${delay}s"><g transform="scale(${scale})">${HIT}<g class="bod">${shape(i)}</g></g></g></g></g>`;
   }
   return out;
 }
-const FALL_STYLE = `.fall{animation:fall linear infinite}.bit{transform-box:fill-box;transform-origin:center;transition:transform .9s ease,filter .9s ease}.bit:hover{transform:scale(2.2) rotate(200deg);filter:brightness(1.35) saturate(1.2)}@keyframes fall{from{transform:translateY(0)}to{transform:translateY(${H + 140}px)}}.sway{animation:sway ease-in-out infinite alternate}@keyframes sway{from{transform:translateX(-30px) rotate(-35deg)}to{transform:translateX(30px) rotate(40deg)}}`;
+const FALL_STYLE = `.fall{animation:fall linear infinite}.hz{fill:transparent;pointer-events:all}.bod{pointer-events:none;transition:transform 0s 100000s}.hl:hover~.bod{transform:translate(46px,-8px) rotate(35deg);transition:transform .8s cubic-bezier(.25,1.7,.45,1)}.hr:hover~.bod{transform:translate(-46px,-8px) rotate(-35deg);transition:transform .8s cubic-bezier(.25,1.7,.45,1)}.ht:hover~.bod{transform:translate(8px,42px) rotate(20deg);transition:transform .8s cubic-bezier(.25,1.7,.45,1)}.hb:hover~.bod{transform:translate(-8px,-42px) rotate(-20deg);transition:transform .8s cubic-bezier(.25,1.7,.45,1)}@keyframes fall{from{transform:translateY(0)}to{transform:translateY(${H + 140}px)}}.sway{animation:sway ease-in-out infinite alternate}@keyframes sway{from{transform:translateX(-30px) rotate(-35deg)}to{transform:translateX(30px) rotate(40deg)}}`;
 function herbst(nacht = false) {
   const r = rng(nacht ? 9 : 7);
   const s = nacht ? sky("herbstnacht", ["#3a2a3a", "#24161c"], ["#170d14", "#0d0709"]) : sky("herbst", ["#f6e4c8", "#e9c9a0"], ["#2a1c12", "#1a120c"]);
   const leaf = (i) => `<path class="bit l${i % 5}" d="M0 -18 C12 -12 14 4 0 18 C-14 4 -12 -12 0 -18 Z M0 -18 L0 18" stroke-width="1"/>`;
   const hills = `<path d="M0 880 C300 820 520 900 800 870 C1100 840 1300 900 1600 860 L1600 1000 L0 1000 Z" class="hill"/><ellipse cx="180" cy="905" rx="190" ry="34" class="pile"/><ellipse cx="1420" cy="910" rx="220" ry="36" class="pile"/>`;
   const light = `.l0{fill:#d9622b}.l1{fill:#e0912f}.l2{fill:#b8461f}.l3{fill:#c97a1e}.l4{fill:#a5381c}.bit{stroke:#7a3412;opacity:.9}.hill{fill:#d9a46c;opacity:.55}.pile{fill:#d06a2a;opacity:.55}`;
-  const dark = `.l0{fill:#8a3a1c}.l1{fill:#9c6420}.l2{fill:#6e2a16}.l3{fill:#a0521a}.l4{fill:#5a2414}.bit{stroke:#2a1208;opacity:.95}.hill{fill:#2e1c10;opacity:.9}.pile{fill:#5a2a12;opacity:.8}`;
+  const dark = `.l0{fill:#b84a1f}.l1{fill:#c97c24}.l2{fill:#9a3618}.l3{fill:#d08c2c}.l4{fill:#8c2e16}.bit{stroke:#2a1208;opacity:.95}.hill{fill:#2e1c10;opacity:.9}.pile{fill:#5a2a12;opacity:.8}`;
   let extra = "";
   if (nacht) {
     for (let i = 0; i < 40; i++) {
@@ -74,7 +75,7 @@ function sakura() {
   const s = sky("sakura", ["#fbe6ee", "#f3cddb"], ["#2a1620", "#170c12"]);
   const petal = (i) => `<path class="bit p${i % 3}" d="M0 -10 C8 -10 10 0 0 10 C-10 0 -8 -10 0 -10 Z"/>`;
   const branch = `<path d="M-20 140 C140 120 260 60 420 70 M200 108 C240 60 300 40 360 30" stroke="#5a3a3f" stroke-width="10" fill="none" stroke-linecap="round" opacity="0.75"/>` + Array.from({ length: 16 }, (_, i) => `<circle cx="${(40 + i * 24 + r() * 20).toFixed(0)}" cy="${(70 + r() * 70).toFixed(0)}" r="${(10 + r() * 12).toFixed(0)}" fill="#f2a3c0" opacity="0.7"/>`).join("");
-  return wrap("sakura", s.defs, s.style + FALL_STYLE + `.p0{fill:#f7a8c4}.p1{fill:#f4bfd3}.p2{fill:#ec8fb2}.bit{opacity:.9}@media (prefers-color-scheme: dark){.p0{fill:#b0577a}.p1{fill:#c47895}.p2{fill:#8e3f60}}`, branch + fallers(r, 48, petal, "fall", 13, 26));
+  return wrap("sakura", s.defs, s.style + FALL_STYLE + `.p0{fill:#f7a8c4}.p1{fill:#f4bfd3}.p2{fill:#ec8fb2}.bit{opacity:.9}@media (prefers-color-scheme: dark){.p0{fill:#d27394}.p1{fill:#e294ae}.p2{fill:#b8577c}}`, branch + fallers(r, 48, petal, "fall", 13, 26));
 }
 function mitternacht() {
   const r = rng(23);

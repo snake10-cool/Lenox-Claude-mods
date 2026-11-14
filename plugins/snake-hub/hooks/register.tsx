@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register, ThemeSetArgs } from 'claude-code'
+import type { EngineInterface, Register, RenderChildren, ThemeSetArgs } from 'claude-code'
 
 import type { Aktivitaet, Fortschritt, HubSettings, Statistik } from '../types'
 import { makeColors } from './make-colors.js'
@@ -46,9 +46,9 @@ const MODI: { id: string; name: string }[] = [
 ]
 
 const STAERKEN: { id: string; name: string; glass: { blur: number; opacity: number } }[] = [
-  { id: 'dezent', name: '🌫️ Dezent', glass: { blur: 8, opacity: 0.6 } },
-  { id: 'normal', name: '🍂 Normal', glass: { blur: 3, opacity: 0.4 } },
-  { id: 'kraeftig', name: '🍁 Kräftig', glass: { blur: 0, opacity: 0.18 } },
+  { id: 'dezent', name: '🌫️ Dezent', glass: { blur: 10, opacity: 0.5 } },
+  { id: 'normal', name: '🍂 Normal', glass: { blur: 4, opacity: 0.28 } },
+  { id: 'kraeftig', name: '🍁 Kräftig', glass: { blur: 0, opacity: 0.1 } },
 ]
 
 const DEFAULTS: HubSettings = {
@@ -78,6 +78,7 @@ const LEER: Fortschritt = { prozent: 0, aufgabe: '', schritt: '', laeuft: false,
 const fortschritt = atom({ plugin: 'snake-hub', key: 'fortschritt' } as const, LEER, { shape: 'fortschritt-2' })
 const settings = atom({ plugin: 'snake-hub', key: 'settings' } as const, DEFAULTS, { shape: 'settings-3' })
 const aktivitaet = atom({ plugin: 'snake-hub', key: 'aktivitaet' } as const, [] as Aktivitaet[], { shape: 'aktivitaet-1' })
+const tab = atom({ plugin: 'snake-hub', key: 'tab' } as const, 'start', { shape: 'tab-1' })
 const statistik = atom({ plugin: 'snake-hub', key: 'statistik' } as const, { antworten: 0, werkzeuge: 0, dateien: [], start: 0 } as Statistik, { shape: 'statistik-1' })
 
 let uhrTimer: { cancel: () => void } | undefined
@@ -433,13 +434,10 @@ export const register: Register = on => {
     const f = await read($, fortschritt)
     const feed = await read($, aktivitaet)
     const st = await read($, statistik)
+    const reiter = await read($, tab)
     const jetzt = await $.clock.now()
     const t = THEME_SEEDS[s.theme]
 
-    const setTheme = (id: string) => async () => {
-      const x = await save($, y => ({ ...y, theme: id }))
-      await applyTheme($, x)
-    }
     const setSetting = (patch: Partial<HubSettings>) => async () => {
       const x = await save($, y => ({ ...y, ...patch }))
       await applyTheme($, x)
@@ -455,91 +453,116 @@ export const register: Register = on => {
       await save($, y => ({ ...y, skills: { ...y.skills, [id]: !y.skills[id] } }))
     }
 
+    const Abschnitt = (titel: string, kinder: RenderChildren) => (
+      <Box flexDirection="column" borderStyle="round" paddingX={1} paddingY={0} gap={0}>
+        <Text size="heading" weight="bold">{titel}</Text>
+        {kinder}
+      </Box>
+    )
+
+    const Chips = (items: { id: string; label: string; aktiv: boolean; los: () => void }[]) => (
+      <Box flexDirection="row" flexWrap="wrap" gap={1}>
+        {items.map(c => (
+          <Button key={c.id} label={c.label} variant={c.aktiv ? 'primary' : 'secondary'} onPress={c.los} />
+        ))}
+      </Box>
+    )
+
+    const Schalter = (key: string, name: string, an: boolean, los: () => void) => (
+      <Box key={key} flexDirection="row" justifyContent="space-between" alignItems="center">
+        <Text dimColor={!an}>{name}</Text>
+        <Button key={`${key}-b`} label={an ? 'An' : 'Aus'} variant={an ? 'primary' : 'secondary'} onPress={los} />
+      </Box>
+    )
+
+    const REITER = [
+      { id: 'start', label: '🏠 Start' },
+      { id: 'look', label: '🎨 Aussehen' },
+      { id: 'mods', label: '🧩 Mods' },
+      { id: 'skills', label: '🧠 Skills' },
+    ]
+
     return (
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column">
           <Text size="title" weight="bold">🐍 Snake-Hub</Text>
-          <Text dimColor>{t ? `${t.emoji} ${t.name}` : 'Kein Theme'} · {SKILLS.filter(k => s.skills[k.id]).length} Skills · {MODS.filter(m => s.mods[m.id]).length} Mods aktiv</Text>
+          <Text dimColor size="footnote">
+            {t ? `${t.emoji} ${t.name}` : 'Kein Theme'} · {s.modus === 'hell' ? 'Hell' : s.modus === 'auto' ? 'Wie Windows' : 'Dunkel'} · {MODS.filter(m => s.mods[m.id]).length}/{MODS.length} Mods · {SKILLS.filter(k => s.skills[k.id]).length}/{SKILLS.length} Skills
+          </Text>
         </Box>
 
-        {s.mods.fortschritt && (
-          <Box flexDirection="column" borderStyle="round" paddingX={1}>
-            <Text size="heading" weight="bold">📊 Fortschritt</Text>
-            {f.aufgabe === '' ? (
+        {Chips(REITER.map(r => ({ id: `r-${r.id}`, label: r.label, aktiv: reiter === r.id, los: () => void update($, tab, () => r.id) })))}
+
+        {reiter === 'start' && (
+          <Box flexDirection="column" gap={1}>
+            {s.mods.fortschritt && Abschnitt('📊 Fortschritt', f.aufgabe === '' ? (
               <Text dimColor>Schick mir eine Aufgabe, dann läuft hier der Balken mit.</Text>
             ) : (
               <Box flexDirection="column">
                 <Text weight="semibold">{f.aufgabe}</Text>
-                <Text mono color={f.laeuft ? 'claude' : 'success'}>{balken(f.prozent)} {Math.round(f.prozent)} %</Text>
-                <Text dimColor>{f.laeuft ? f.schritt : '🎉 Fertig – kann abgeholt werden!'}</Text>
+                <Text mono color={f.laeuft ? 'claude' : 'success'}>{balken(f.prozent, 18)} {Math.round(f.prozent)} %</Text>
+                <Text dimColor size="footnote">{f.laeuft ? f.schritt : '🎉 Fertig – kann abgeholt werden!'}</Text>
               </Box>
-            )}
+            ))}
+
+            {s.mods.statistik && Abschnitt('📈 Diese Sitzung', (
+              <Box flexDirection="row" flexWrap="wrap" columnGap={3}>
+                <Text tabular>⏱️ {Math.max(0, Math.floor((jetzt - st.start) / 60000))} min</Text>
+                <Text tabular>💬 {st.antworten} Aufträge</Text>
+                <Text tabular>🔧 {st.werkzeuge} Schritte</Text>
+                <Text tabular>📁 {st.dateien.length} Dateien</Text>
+              </Box>
+            ))}
+
+            {s.mods.aktivitaet && Abschnitt('📜 Was Claude gerade tut', (
+              <Box flexDirection="column">
+                {feed.length === 0 && <Text dimColor>Noch nichts passiert.</Text>}
+                {feed.slice(-6).reverse().map(a => (
+                  <Text key={a.id} size="footnote" dimColor={a.fertig && !a.fehler} color={a.fehler ? 'error' : undefined}>
+                    {a.fertig ? (a.fehler ? '✗' : '✓') : '…'} {a.icon} {a.text}
+                  </Text>
+                ))}
+              </Box>
+            ))}
+
+            {s.mods.knoepfe && Abschnitt('🎛️ Schnellknöpfe', Chips(KNOEPFE.map(k => ({ id: `k-${k.label}`, label: k.label, aktiv: false, los: () => void sende($, k.prompt) }))))}
           </Box>
         )}
 
-        {s.mods.statistik && (
-          <Box flexDirection="column" borderStyle="round" paddingX={1}>
-            <Text size="heading" weight="bold">📈 Diese Sitzung</Text>
-            <Text tabular>⏱️ {Math.max(0, Math.floor((jetzt - st.start) / 60000))} min   💬 {st.antworten} Aufträge</Text>
-            <Text tabular>🔧 {st.werkzeuge} Werkzeug-Schritte   📁 {st.dateien.length} Dateien geändert</Text>
-          </Box>
-        )}
-
-        {s.mods.aktivitaet && (
-          <Box flexDirection="column" borderStyle="round" paddingX={1}>
-            <Text size="heading" weight="bold">📜 Was Claude gerade tut</Text>
-            {feed.length === 0 && <Text dimColor>Noch nichts passiert.</Text>}
-            {feed.slice(-8).reverse().map(a => (
-              <Text key={a.id} dimColor={a.fertig && !a.fehler} color={a.fehler ? 'error' : undefined}>
-                {a.fertig ? (a.fehler ? '✗' : '✓') : '…'} {a.icon} {a.text}
-              </Text>
+        {reiter === 'look' && (
+          <Box flexDirection="column" gap={1}>
+            {Abschnitt('🎨 Theme', Chips([
+              ...Object.entries(THEME_SEEDS).map(([id, th]) => ({ id: `t-${id}`, label: `${th.emoji} ${th.name}`, aktiv: s.theme === id, los: () => void setSetting({ theme: id })() })),
+              { id: 't-aus', label: 'Aus', aktiv: s.theme === 'aus', los: () => void setSetting({ theme: 'aus' })() },
+            ]))}
+            {Abschnitt('🌓 Hell oder dunkel', Chips(MODI.map(m => ({ id: `d-${m.id}`, label: m.name, aktiv: s.modus === m.id, los: () => void setSetting({ modus: m.id })() }))))}
+            {Abschnitt('🍃 Hintergrund-Stärke', (
+              <Box flexDirection="column">
+                {Chips(STAERKEN.map(m => ({ id: `g-${m.id}`, label: m.name, aktiv: s.staerke === m.id, los: () => void setSetting({ staerke: m.id })() })))}
+                <Text dimColor size="caption">Fahr mit der Maus an Blätter, Blüten oder Flocken heran: Sie weichen dir aus.</Text>
+              </Box>
+            ))}
+            {Abschnitt('🖥️ Wo', (
+              <Box flexDirection="column">
+                {Schalter('w-szenen', 'In Claude', s.mods.szenen === true, () => void toggleMod('szenen')())}
+                {Schalter('w-desktop', 'Auf dem ganzen PC (Snake-Desktop)', s.mods.desktop === true, () => void toggleMod('desktop')())}
+              </Box>
             ))}
           </Box>
         )}
 
-        {s.mods.knoepfe && (
-          <Box flexDirection="column" borderStyle="round" paddingX={1}>
-            <Text size="heading" weight="bold">🎛️ Schnellknöpfe</Text>
-            {KNOEPFE.map(k => (
-              <Button key={`k-${k.label}`} label={k.label} onPress={() => void sende($, k.prompt)} />
-            ))}
+        {reiter === 'mods' && Abschnitt('🧩 Mods', (
+          <Box flexDirection="column">
+            {MODS.map(m => Schalter(`m-${m.id}`, m.name, s.mods[m.id] === true, () => void toggleMod(m.id)()))}
           </Box>
-        )}
+        ))}
 
-        <Box flexDirection="column" borderStyle="round" paddingX={1}>
-          <Text size="heading" weight="bold">🎨 Theme</Text>
-          {Object.entries(THEME_SEEDS).map(([id, th]) => (
-            <Button key={`t-${id}`} label={`${s.theme === id ? '●' : '○'} ${th.emoji} ${th.name}`} onPress={() => void setTheme(id)()} />
-          ))}
-          <Button key="t-aus" label={`${s.theme === 'aus' ? '●' : '○'} Aus`} onPress={() => void setTheme('aus')()} />
-        </Box>
-
-        <Box flexDirection="column" borderStyle="round" paddingX={1}>
-          <Text size="heading" weight="bold">🌓 Hell oder dunkel</Text>
-          {MODI.map(m => (
-            <Button key={`d-${m.id}`} label={`${s.modus === m.id ? '●' : '○'} ${m.name}`} onPress={() => void setSetting({ modus: m.id })()} />
-          ))}
-          <Text size="heading" weight="bold">🍃 Hintergrund-Stärke</Text>
-          {STAERKEN.map(m => (
-            <Button key={`g-${m.id}`} label={`${s.staerke === m.id ? '●' : '○'} ${m.name}`} onPress={() => void setSetting({ staerke: m.id })()} />
-          ))}
-          <Text dimColor size="caption">Fahr mit der Maus über Blätter, Blüten oder Flocken.</Text>
-        </Box>
-
-        <Box flexDirection="column" borderStyle="round" paddingX={1}>
-          <Text size="heading" weight="bold">🧩 Mods</Text>
-          {MODS.map(m => (
-            <Button key={`m-${m.id}`} label={`${s.mods[m.id] ? '● AN ' : '○ AUS'}  ${m.name}`} onPress={() => void toggleMod(m.id)()} />
-          ))}
-        </Box>
-
-        <Box flexDirection="column" borderStyle="round" paddingX={1}>
-          <Text size="heading" weight="bold">🧠 Skills</Text>
-          {SKILLS.map(k => (
-            <Button key={`s-${k.id}`} label={`${s.skills[k.id] ? '● AN ' : '○ AUS'}  ${k.name}`} onPress={() => void toggleSkill(k.id)()} />
-          ))}
-          <Text dimColor size="caption">Skill-Änderungen gelten ab deiner nächsten Nachricht.</Text>
-        </Box>
+        {reiter === 'skills' && Abschnitt('🧠 Skills', (
+          <Box flexDirection="column">
+            {SKILLS.map(k => Schalter(`s-${k.id}`, k.name, s.skills[k.id] === true, () => void toggleSkill(k.id)()))}
+            <Text dimColor size="caption">Änderungen gelten ab deiner nächsten Nachricht.</Text>
+          </Box>
+        ))}
       </Box>
     )
   })
