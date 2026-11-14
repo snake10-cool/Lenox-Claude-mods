@@ -10,6 +10,7 @@ import { THEME_SEEDS } from './themes'
 
 const MODS: { id: string; name: string }[] = [
   { id: 'szenen', name: '🎞️ Animierter Hintergrund' },
+  { id: 'desktop', name: '🖥️ Auch auf dem ganzen PC (Snake-Desktop)' },
   { id: 'fortschritt', name: '📊 Fortschrittsbalken' },
   { id: 'leiste', name: '▶️ Leiste über dem Eingabefeld' },
   { id: 'aktivitaet', name: '📜 Aktivitäts-Feed' },
@@ -54,7 +55,7 @@ const DEFAULTS: HubSettings = {
   theme: 'herbst',
   modus: 'dunkel',
   staerke: 'normal',
-  mods: { szenen: true, fortschritt: true, leiste: true, aktivitaet: true, statistik: true, knoepfe: true, uhr: false, pause: false, schutz: true, fertig: true },
+  mods: { szenen: true, desktop: true, fortschritt: true, leiste: true, aktivitaet: true, statistik: true, knoepfe: true, uhr: false, pause: false, schutz: true, fertig: true },
   skills: { 'spiel-bauen': true, 'bug-jagd': true, 'flutter-release': true, 'einfach-erklaert': true, 'game-guide': true, 'kurz-knapp': false, 'deutsch-immer': true },
 }
 
@@ -126,7 +127,17 @@ function merge(saved: unknown): HubSettings {
   }
 }
 
+async function desktopSync($: EngineInterface, s: HubSettings): Promise<void> {
+  const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+  if (home === undefined) {
+    return
+  }
+  const daten = { an: s.mods.desktop === true && SCENES[s.theme] !== undefined, theme: s.theme, modus: s.modus, staerke: s.staerke }
+  await $.fs.write(`${home}/.snake-hub/desktop.json`, JSON.stringify(daten, null, 2))
+}
+
 async function applyTheme($: EngineInterface, s: HubSettings): Promise<string> {
+  void desktopSync($, s).catch(() => undefined)
   const colors = PALETTES[s.theme]
   if (colors === undefined) {
     await $.theme.clear()
@@ -197,7 +208,7 @@ export const register: Register = on => {
     await $.command.register({ name: 'look', description: 'Theme wechseln: herbst, herbstnacht, sakura, mitternacht, ozean, wald, schnee, regen, lagerfeuer oder aus' })
     await $.command.register({ name: 'modus', description: 'Hell oder dunkel: dunkel, hell oder auto' })
     await $.command.register({ name: 'blaetter', description: 'Wie stark der Hintergrund zu sehen ist: dezent, normal oder kraeftig' })
-    await $.command.register({ name: 'mod', description: 'Mod an/aus: szenen, fortschritt, leiste, aktivitaet, statistik, knoepfe, uhr, pause, schutz, fertig' })
+    await $.command.register({ name: 'mod', description: 'Mod an/aus: szenen, desktop, fortschritt, leiste, aktivitaet, statistik, knoepfe, uhr, pause, schutz, fertig' })
     await $.command.register({ name: 'skill', description: 'Skill an/aus: spiel-bauen, bug-jagd, flutter-release, einfach-erklaert, game-guide, kurz-knapp, deutsch-immer' })
     await $.command.register({ name: 'mehr-details', description: 'Claude fügt dem Projekt mehr passende Details hinzu' })
     await $.tool.register({
@@ -275,7 +286,7 @@ export const register: Register = on => {
     }
     const s = await save($, x => ({ ...x, mods: { ...x.mods, [id]: !x.mods[id] } }))
     applyTimers($, s)
-    if (id === 'szenen') {
+    if (id === 'szenen' || id === 'desktop') {
       await applyTheme($, s)
     }
     return { text: `${mod.name}: ${s.mods[id] ? 'AN' : 'AUS'}` }
@@ -436,7 +447,7 @@ export const register: Register = on => {
     const toggleMod = (id: string) => async () => {
       const x = await save($, y => ({ ...y, mods: { ...y.mods, [id]: !y.mods[id] } }))
       applyTimers($, x)
-      if (id === 'szenen') {
+      if (id === 'szenen' || id === 'desktop') {
         await applyTheme($, x)
       }
     }

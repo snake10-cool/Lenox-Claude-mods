@@ -1,7 +1,7 @@
 {
   "name": "snake-hub",
-  "version": "0.4.0",
-  "description": "Schaltzentrale: 9 animierte Themes, 10 Mods und 7 Skills, alles einzeln an- und ausschaltbar",
+  "version": "0.5.0",
+  "description": "Schaltzentrale: 9 animierte Themes, 11 Mods und 7 Skills, alles einzeln an- und ausschaltbar",
   "license": "MIT",
   "types": "./types/index.d.ts"
 }

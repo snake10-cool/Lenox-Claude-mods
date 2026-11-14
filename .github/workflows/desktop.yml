@@ -1,0 +1,38 @@
+name: Snake-Desktop bauen
+
+on:
+  push:
+    branches: [main]
+    paths: ['desktop/**', 'plugins/snake-hub/hooks/scenes.ts', '.github/workflows/desktop.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npm run scenes
+      - run: npm run dist
+      - name: Als Release "desktop" veröffentlichen
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop
+          name: Snake-Desktop (neueste Version)
+          body: |
+            Snake-Desktop für Windows: Blätter, Blüten, Schnee, Regen und Funken über dem ganzen Bildschirm.
+            - Snake-Desktop-Setup.exe: installieren (Startmenü- und Desktop-Symbol)
+            - Snake-Desktop-Portable.exe: ohne Installation starten
+          files: |
+            desktop/dist/Snake-Desktop-Setup.exe
+            desktop/dist/Snake-Desktop-Portable.exe
+          make_latest: true
