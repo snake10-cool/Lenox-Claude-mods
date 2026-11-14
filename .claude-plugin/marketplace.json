@@ -1,8 +1,20 @@
 {
   "name": "lenox-claude-mods",
-  "owner": { "name": "snake10-cool" },
+  "owner": {
+    "name": "snake10-cool"
+  },
   "plugins": [
-    { "name": "snake-hub", "source": "./plugins/snake-hub", "description": "Schaltzentrale: 5 Themes, 6 Mods, Skills an/aus" },
-    { "name": "snake-skills", "source": "./plugins/snake-skills", "description": "5 Skills: Spiel bauen, Bug-Jagd, Flutter-Release, Einfach erklärt, Game-Guide" }
+    {
+      "name": "snake-hub",
+      "source": "./plugins/snake-hub",
+      "description": "Schaltzentrale: 5 animierte Themes, 10 Mods und 7 Skills, alles einzeln an- und ausschaltbar",
+      "version": "0.3.0"
+    },
+    {
+      "name": "snake-skills",
+      "source": "./plugins/snake-skills",
+      "description": "5 Skills: Spiel bauen, Bug-Jagd, Flutter-Release, Einfach erklärt, Game-Guide",
+      "version": "0.1.0"
+    }
   ]
 }
