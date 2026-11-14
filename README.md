@@ -2,7 +2,7 @@
 
 | Plugin | Inhalt |
 |---|---|
-| **snake-hub** | Panel „🐍 Snake-Hub“ mit Schaltern. **Themes:** Herbstlaub, Sakura, Mitternacht, Ozean, Wald, Aus. **Mods:** Fortschrittsbalken, Schnellknöpfe, Sitzungs-Uhr, Pausen-Erinnerung, Datei-Schutz, Fertig-Meldung. **Skills an/aus** für alle Skills unten plus „Kurz & knapp“ und „Immer Deutsch“. |
+| **snake-hub** | Panel „🐍 Snake-Hub“ mit Schaltern. **Animierte Themes:** Herbstlaub (fallende Blätter), Sakura (Kirschblüten), Mitternacht (Sterne, Sternschnuppe), Ozean (Wellen, Blasen), Wald (Tannen, Glühwürmchen), Aus. **Mods:** Animierter Hintergrund, automatischer Fortschrittsbalken, Leiste über dem Eingabefeld, Aktivitäts-Feed, Statistik, Schnellknöpfe, Sitzungs-Uhr, Pausen-Erinnerung, Datei-Schutz, Fertig-Meldung. **Skills an/aus** für alle Skills unten plus „Kurz & knapp“ und „Immer Deutsch“. |
 | **snake-skills** | Skills: Spiel bauen, Bug-Jagd, Flutter-Release, Einfach erklärt, Game-Guide |
 
 Befehle (funktionieren auch ohne Panel): `/hub`, `/look <herbst|sakura|mitternacht|ozean|wald|aus>`, `/mod <name>`, `/skill <name>`, `/mehr-details`.

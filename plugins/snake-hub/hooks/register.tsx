@@ -1,36 +1,34 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, ThemeSetArgs } from 'claude-code'
 
-import type { Fortschritt, HubSettings } from '../types'
+import type { Aktivitaet, Fortschritt, HubSettings, Statistik } from '../types'
 import { makeColors } from './make-colors.js'
+import { SCENE_ALT, SCENES } from './scenes'
 import { THEME_SEEDS } from './themes'
 
-// ---------- Kataloge: was es alles zum An- und Ausschalten gibt ----------
+// ---------- Kataloge ----------
 
-const MODS: { id: string; name: string; info: string }[] = [
-  { id: 'fortschritt', name: '📊 Fortschrittsbalken', info: 'Ladebalken für laufende Projekte, Meldung bei 100 %' },
-  { id: 'knoepfe', name: '🎛️ Schnellknöpfe', info: 'Mehr Details, Neues Level, Bugs suchen, Ideen' },
-  { id: 'uhr', name: '🕒 Sitzungs-Uhr', info: 'Uhrzeit und Sitzungsdauer in der Statuszeile' },
-  { id: 'pause', name: '☕ Pausen-Erinnerung', info: 'Alle 45 Minuten eine Erinnerung' },
-  { id: 'schutz', name: '🛡️ Datei-Schutz', info: 'Schützt .env, Schlüssel und Signatur-Dateien vor Änderungen' },
-  { id: 'fertig', name: '✅ Fertig-Meldung', info: 'Kurze Meldung, wenn Claude mit einer Antwort fertig ist' },
+const MODS: { id: string; name: string }[] = [
+  { id: 'szenen', name: '🎞️ Animierter Hintergrund' },
+  { id: 'fortschritt', name: '📊 Fortschrittsbalken' },
+  { id: 'leiste', name: '▶️ Leiste über dem Eingabefeld' },
+  { id: 'aktivitaet', name: '📜 Aktivitäts-Feed' },
+  { id: 'statistik', name: '📈 Statistik' },
+  { id: 'knoepfe', name: '🎛️ Schnellknöpfe' },
+  { id: 'uhr', name: '🕒 Sitzungs-Uhr' },
+  { id: 'pause', name: '☕ Pausen-Erinnerung' },
+  { id: 'schutz', name: '🛡️ Datei-Schutz' },
+  { id: 'fertig', name: '✅ Fertig-Meldung' },
 ]
 
-const SKILLS: { id: string; name: string; info: string; context: string }[] = [
-  { id: 'spiel-bauen', name: '🎮 Spiel bauen', info: 'Browser-Spiele Schritt für Schritt bauen',
-    context: 'Skill „snake-skills:spiel-bauen“ ist AN: Wenn der Nutzer ein Spiel bauen will, lade diesen Skill und folge ihm.' },
-  { id: 'bug-jagd', name: '🐞 Bug-Jagd', info: 'Fehler systematisch finden und beheben',
-    context: 'Skill „snake-skills:bug-jagd“ ist AN: Bei Fehlern, Abstürzen oder „geht nicht“ lade diesen Skill und folge ihm.' },
-  { id: 'flutter-release', name: '📱 Flutter-Release', info: 'Android-App für Google Play fertig machen',
-    context: 'Skill „snake-skills:flutter-release“ ist AN: Wenn es um eine Veröffentlichung im Play Store oder eine Release-Version geht, lade diesen Skill und folge ihm.' },
-  { id: 'einfach-erklaert', name: '🧠 Einfach erklärt', info: 'Erklärungen ohne Fachchinesisch',
-    context: 'Skill „snake-skills:einfach-erklaert“ ist AN: Wenn der Nutzer etwas verstehen will, lade diesen Skill und folge ihm.' },
-  { id: 'game-guide', name: '🕹️ Game-Guide', info: 'Tipps und Achievements für Videospiele',
-    context: 'Skill „snake-skills:game-guide“ ist AN: Bei Fragen zu Videospielen, Achievements oder Spieltipps lade diesen Skill und folge ihm.' },
-  { id: 'kurz-knapp', name: '✂️ Kurz & knapp', info: 'Antworten so kurz wie möglich',
-    context: 'Modus „Kurz & knapp“ ist AN: Antworte so kurz wie möglich, ohne Einleitung und Wiederholungen.' },
-  { id: 'deutsch-immer', name: '🇩🇪 Immer Deutsch', info: 'Antworten und Code-Kommentare auf Deutsch',
-    context: 'Modus „Immer Deutsch“ ist AN: Antworte immer auf Deutsch und schreibe Code-Kommentare auf Deutsch.' },
+const SKILLS: { id: string; name: string; context: string }[] = [
+  { id: 'spiel-bauen', name: '🎮 Spiel bauen', context: 'Skill „snake-skills:spiel-bauen“ ist AN: Wenn der Nutzer ein Spiel bauen will, lade diesen Skill und folge ihm.' },
+  { id: 'bug-jagd', name: '🐞 Bug-Jagd', context: 'Skill „snake-skills:bug-jagd“ ist AN: Bei Fehlern, Abstürzen oder „geht nicht“ lade diesen Skill und folge ihm.' },
+  { id: 'flutter-release', name: '📱 Flutter-Release', context: 'Skill „snake-skills:flutter-release“ ist AN: Bei Play-Store-Veröffentlichung oder Release-Version lade diesen Skill und folge ihm.' },
+  { id: 'einfach-erklaert', name: '🧠 Einfach erklärt', context: 'Skill „snake-skills:einfach-erklaert“ ist AN: Wenn der Nutzer etwas verstehen will, lade diesen Skill und folge ihm.' },
+  { id: 'game-guide', name: '🕹️ Game-Guide', context: 'Skill „snake-skills:game-guide“ ist AN: Bei Fragen zu Videospielen, Achievements oder Spieltipps lade diesen Skill und folge ihm.' },
+  { id: 'kurz-knapp', name: '✂️ Kurz & knapp', context: 'Modus „Kurz & knapp“ ist AN: Antworte so kurz wie möglich, ohne Einleitung und Wiederholungen.' },
+  { id: 'deutsch-immer', name: '🇩🇪 Immer Deutsch', context: 'Modus „Immer Deutsch“ ist AN: Antworte immer auf Deutsch und schreibe Code-Kommentare auf Deutsch.' },
 ]
 
 const KNOEPFE: { label: string; prompt: string }[] = [
@@ -42,36 +40,65 @@ const KNOEPFE: { label: string; prompt: string }[] = [
 
 const DEFAULTS: HubSettings = {
   theme: 'herbst',
-  mods: { fortschritt: true, knoepfe: true, uhr: false, pause: false, schutz: true, fertig: false },
+  mods: { szenen: true, fortschritt: true, leiste: true, aktivitaet: true, statistik: true, knoepfe: true, uhr: false, pause: false, schutz: true, fertig: true },
   skills: { 'spiel-bauen': true, 'bug-jagd': true, 'flutter-release': true, 'einfach-erklaert': true, 'game-guide': true, 'kurz-knapp': false, 'deutsch-immer': true },
 }
 
 // ---------- Themes ----------
 
-const LOOKS: Record<string, ThemeSetArgs> = {}
+const PALETTES: Record<string, ThemeSetArgs['colors']> = {}
 for (const [id, s] of Object.entries(THEME_SEEDS)) {
-  const { theme } = makeColors({ label: s.name, roles: s.roles, light: { gray: { anchors: s.light } }, dark: { gray: { anchors: s.dark } } })
-  LOOKS[id] = { colors: theme }
+  PALETTES[id] = makeColors({ label: s.name, roles: s.roles, light: { gray: { anchors: s.light } }, dark: { gray: { anchors: s.dark } } }).theme
 }
 
 // ---------- Zustand ----------
 
 const PANE = 'snake-hub'
 const TITEL = '🐍 Snake-Hub'
-const TOOL = 'fortschritt'
+const TOOL_ID = 'mcp__snake-hub__fortschritt'
 const PAUSE_MS = 45 * 60 * 1000
 const SCHUTZ = /(^|[\\/])(\.env(\..*)?|key\.properties|.*\.jks|.*\.keystore|.*\.pem|id_rsa.*)$/i
 
-const fortschritt = atom({ plugin: 'snake-hub', key: 'fortschritt' } as const, { prozent: 0, aufgabe: '', schritt: '' } as Fortschritt, { shape: 'fortschritt-1' })
-const settings = atom({ plugin: 'snake-hub', key: 'settings' } as const, DEFAULTS, { shape: 'settings-1' })
+const LEER: Fortschritt = { prozent: 0, aufgabe: '', schritt: '', laeuft: false, manuell: false }
+const fortschritt = atom({ plugin: 'snake-hub', key: 'fortschritt' } as const, LEER, { shape: 'fortschritt-2' })
+const settings = atom({ plugin: 'snake-hub', key: 'settings' } as const, DEFAULTS, { shape: 'settings-2' })
+const aktivitaet = atom({ plugin: 'snake-hub', key: 'aktivitaet' } as const, [] as Aktivitaet[], { shape: 'aktivitaet-1' })
+const statistik = atom({ plugin: 'snake-hub', key: 'statistik' } as const, { antworten: 0, werkzeuge: 0, dateien: [], start: 0 } as Statistik, { shape: 'statistik-1' })
 
-let startedAt = 0
 let uhrTimer: { cancel: () => void } | undefined
 let pauseTimer: { cancel: () => void } | undefined
+let schritte = 0
+let letzterKlick = 0
 
-function balken(prozent: number, breite = 20): string {
+// ---------- Hilfsfunktionen ----------
+
+function balken(prozent: number, breite = 22): string {
   const voll = Math.round((prozent / 100) * breite)
   return '█'.repeat(voll) + '░'.repeat(breite - voll)
+}
+
+function kurz(text: string, n: number): string {
+  const t = text.replace(/\s+/g, ' ').trim()
+  return t.length > n ? `${t.slice(0, n - 1)}…` : t
+}
+
+function dateiname(p: unknown): string {
+  return String(p ?? '').split(/[\\/]/).pop() ?? ''
+}
+
+function beschreibe(tool: string, e: Record<string, unknown>): { icon: string; text: string; datei?: string } {
+  switch (tool) {
+    case 'Bash': return { icon: '⌨️', text: `Befehl: ${kurz(String(e.command ?? ''), 40)}` }
+    case 'Edit': return { icon: '✏️', text: `Bearbeitet ${dateiname(e.file_path)}`, datei: String(e.file_path ?? '') }
+    case 'Write': return { icon: '📝', text: `Schreibt ${dateiname(e.file_path)}`, datei: String(e.file_path ?? '') }
+    case 'Read': return { icon: '📖', text: `Liest ${dateiname(e.file_path)}` }
+    case 'Grep': case 'Glob': return { icon: '🔍', text: 'Durchsucht Dateien' }
+    case 'WebSearch': return { icon: '🌐', text: `Websuche: ${kurz(String(e.query ?? ''), 34)}` }
+    case 'WebFetch': return { icon: '🌐', text: 'Lädt eine Webseite' }
+    case 'Agent': return { icon: '🤖', text: 'Startet einen Helfer' }
+    case 'Skill': return { icon: '🧩', text: `Skill: ${String(e.skill ?? '')}` }
+    default: return { icon: '🔧', text: tool.replace(/^mcp__[^_]+__/, '') }
+  }
 }
 
 function merge(saved: unknown): HubSettings {
@@ -83,14 +110,18 @@ function merge(saved: unknown): HubSettings {
   }
 }
 
-async function applyTheme($: EngineInterface, id: string): Promise<string> {
-  const look = LOOKS[id]
-  if (look === undefined) {
+async function applyTheme($: EngineInterface, s: HubSettings): Promise<string> {
+  const colors = PALETTES[s.theme]
+  if (colors === undefined) {
     await $.theme.clear()
     return 'Theme aus (Standard-Aussehen der App)'
   }
+  const look: ThemeSetArgs = s.mods.szenen && SCENES[s.theme] !== undefined
+    ? { colors, backdrop: { scene: s.theme, glass: { blur: 6, opacity: 0.55 } } }
+    : { colors }
   const set = await $.theme.set(look)
-  const name = `${THEME_SEEDS[id]?.emoji ?? ''} ${THEME_SEEDS[id]?.name ?? id}`
+  const t = THEME_SEEDS[s.theme]
+  const name = `${t?.emoji ?? ''} ${t?.name ?? s.theme}`
   return set.isDrawn ? `Theme: ${name}` : `Theme: ${name} (wird gezeichnet, sobald die Desktop- oder Handy-App angeschlossen ist)`
 }
 
@@ -102,7 +133,8 @@ function applyTimers($: EngineInterface, s: HubSettings): void {
   if (s.mods.uhr) {
     const tick = async () => {
       const now = await $.clock.now()
-      const min = Math.floor((now - startedAt) / 60000)
+      const st = await read($, statistik)
+      const min = Math.floor((now - st.start) / 60000)
       const zeit = new Date(now).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
       $.ui.status(`🕒 ${zeit} · Sitzung ${min} min`)
     }
@@ -123,27 +155,36 @@ async function save($: EngineInterface, fn: (s: HubSettings) => HubSettings): Pr
   return next
 }
 
+async function sende($: EngineInterface, text: string): Promise<void> {
+  const now = await $.clock.now()
+  if (now - letzterKlick < 2000) {
+    return
+  }
+  letzterKlick = now
+  void $.prompt.submit({ text })
+}
+
+// ---------- Mod ----------
 
 export const register: Register = on => {
-  // ---------- Start ----------
-
   on('session.start', async ($, e, next) => {
-    startedAt = await $.clock.now()
+    const start = await $.clock.now()
+    await update($, statistik, () => ({ antworten: 0, werkzeuge: 0, dateien: [], start }))
     const s = merge(await $.store.get('settings'))
     await update($, settings, () => s)
-    await applyTheme($, s.theme)
+    await applyTheme($, s)
     applyTimers($, s)
 
     await $.command.register({ name: 'hub', description: 'Öffnet den Snake-Hub und zeigt, was an und aus ist' })
     await $.command.register({ name: 'look', description: 'Theme wechseln: herbst, sakura, mitternacht, ozean, wald oder aus' })
-    await $.command.register({ name: 'mod', description: 'Mod an/aus: fortschritt, knoepfe, uhr, pause, schutz, fertig' })
+    await $.command.register({ name: 'mod', description: 'Mod an/aus: szenen, fortschritt, leiste, aktivitaet, statistik, knoepfe, uhr, pause, schutz, fertig' })
     await $.command.register({ name: 'skill', description: 'Skill an/aus: spiel-bauen, bug-jagd, flutter-release, einfach-erklaert, game-guide, kurz-knapp, deutsch-immer' })
     await $.command.register({ name: 'mehr-details', description: 'Claude fügt dem Projekt mehr passende Details hinzu' })
     await $.tool.register({
-      name: TOOL,
+      name: 'fortschritt',
       description:
-        'Zeigt dem Nutzer den Fortschritt einer mehrstufigen Aufgabe als Ladebalken im Snake-Hub. ' +
-        'Bei Projekten mit mehreren Schritten (z. B. ein Spiel bauen) am Anfang mit 0 aufrufen, nach jedem größeren Schritt aktualisieren und am Ende mit 100.',
+        'Optional: setzt den Ladebalken im Snake-Hub genauer, als die automatische Anzeige es kann. ' +
+        'Bei großen Projekten nach jedem Schritt aufrufen (z. B. 20 %, 50 %, 80 %); am Ende setzt der Hub selbst 100 %.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -158,30 +199,31 @@ export const register: Register = on => {
     return next(e)
   })
 
-  // ---------- Slash-Befehle ----------
+  // ---------- Befehle ----------
 
   on('command.run', { command: 'hub' }, async $ => {
     const pane = await $.ui.open({ id: PANE, title: TITEL })
     const s = await read($, settings)
     const an = (b: boolean | undefined) => (b ? '●' : '○')
-    const lines = [
-      '🐍 Snake-Hub',
-      `Theme: ${THEME_SEEDS[s.theme]?.name ?? 'aus'}`,
-      'Mods: ' + MODS.map(m => `${an(s.mods[m.id])} ${m.id}`).join('  '),
-      'Skills: ' + SKILLS.map(k => `${an(s.skills[k.id])} ${k.id}`).join('  '),
-      pane.isPlaced ? '' : 'Panel wird hier nicht angezeigt. Nutze /look, /mod und /skill.',
-    ]
-    return { text: lines.filter(Boolean).join('\n') }
+    return {
+      text: [
+        '🐍 Snake-Hub',
+        `Theme: ${THEME_SEEDS[s.theme]?.name ?? 'aus'}`,
+        'Mods: ' + MODS.map(m => `${an(s.mods[m.id])} ${m.id}`).join('  '),
+        'Skills: ' + SKILLS.map(k => `${an(s.skills[k.id])} ${k.id}`).join('  '),
+        pane.isPlaced ? '' : 'Panel wird hier nicht angezeigt. Nutze /look, /mod und /skill.',
+      ].filter(Boolean).join('\n'),
+    }
   })
 
   on('command.run', { command: 'look' }, async ($, e) => {
     const wahl = (e.args ?? '').trim().toLowerCase()
-    if (wahl !== 'aus' && LOOKS[wahl] === undefined) {
-      return { text: `Unbekanntes Theme „${wahl}“. Möglich: ${Object.keys(LOOKS).join(', ')}, aus` }
+    if (wahl !== 'aus' && PALETTES[wahl] === undefined) {
+      return { text: `Unbekanntes Theme „${wahl}“. Möglich: ${Object.keys(PALETTES).join(', ')}, aus` }
     }
-    await save($, s => ({ ...s, theme: wahl }))
-    return { text: await applyTheme($, wahl) }
-  })
+    const s = await save($, x => ({ ...x, theme: wahl }))
+    return { text: await applyTheme($, s) }
+  }).catch(() => ({ text: 'Theme konnte nicht gewechselt werden.' }))
 
   on('command.run', { command: 'mod' }, async ($, e) => {
     const id = (e.args ?? '').trim().toLowerCase()
@@ -189,8 +231,11 @@ export const register: Register = on => {
     if (mod === undefined) {
       return { text: `Unbekannte Mod „${id}“. Möglich: ${MODS.map(m => m.id).join(', ')}` }
     }
-    const s = await save($, s => ({ ...s, mods: { ...s.mods, [id]: !s.mods[id] } }))
+    const s = await save($, x => ({ ...x, mods: { ...x.mods, [id]: !x.mods[id] } }))
     applyTimers($, s)
+    if (id === 'szenen') {
+      await applyTheme($, s)
+    }
     return { text: `${mod.name}: ${s.mods[id] ? 'AN' : 'AUS'}` }
   })
 
@@ -200,71 +245,131 @@ export const register: Register = on => {
     if (skill === undefined) {
       return { text: `Unbekannter Skill „${id}“. Möglich: ${SKILLS.map(k => k.id).join(', ')}` }
     }
-    const s = await save($, s => ({ ...s, skills: { ...s.skills, [id]: !s.skills[id] } }))
+    const s = await save($, x => ({ ...x, skills: { ...x.skills, [id]: !x.skills[id] } }))
     return { text: `${skill.name}: ${s.skills[id] ? 'AN' : 'AUS'} (gilt ab deiner nächsten Nachricht)` }
   })
 
   on('command.run', { command: 'mehr-details' }, async $ => {
-    void $.prompt.submit({ text: KNOEPFE[0]?.prompt ?? 'Füge dem aktuellen Projekt mehr passende Details hinzu.' })
+    await sende($, KNOEPFE[0]?.prompt ?? 'Füge dem aktuellen Projekt mehr passende Details hinzu.')
     return { text: 'Okay, ich füge mehr Details hinzu ✨' }
   })
 
-  // ---------- Skills: pro Nachricht sagen, was an und aus ist ----------
+  // ---------- Jede Nachricht: Skills mitteilen, Fortschritt starten ----------
 
   on('prompt.submit', async ($, e, next) => {
     if (e.command !== undefined) {
       return next(e)
     }
     const s = await read($, settings)
+    schritte = 0
+    await update($, fortschritt, () => ({ prozent: 3, aufgabe: kurz(e.text, 48), schritt: 'Claude denkt nach …', laeuft: true, manuell: false }))
+    await update($, statistik, st => ({ ...st, antworten: st.antworten + 1 }))
+
     const an = SKILLS.filter(k => s.skills[k.id]).map(k => k.context)
     const aus = SKILLS.filter(k => !s.skills[k.id]).map(k => k.id)
     const hinweis = [
       'Snake-Hub (vom Nutzer gewählte Einstellungen):',
       ...an,
       aus.length > 0 ? `Ausgeschaltet, also nicht verwenden: ${aus.join(', ')}.` : '',
-      s.mods.fortschritt ? 'Bei mehrstufigen Aufgaben den Fortschritt mit dem fortschritt-Werkzeug melden.' : 'Das fortschritt-Werkzeug nicht verwenden.',
+      s.mods.fortschritt ? 'Der Ladebalken läuft automatisch mit; bei großen Projekten kannst du ihn mit dem fortschritt-Werkzeug genauer setzen.' : 'Das fortschritt-Werkzeug nicht verwenden.',
     ].filter(Boolean).join('\n')
     return next({ ...e, context: [...(e.context ?? []), hinweis] })
   }).catch(($, e, next) => next(e))
 
-  // ---------- Mods ----------
+  // ---------- Werkzeug-Aufrufe: Feed, Statistik, Auto-Fortschritt, Schutz ----------
 
-  on('tool.call', { tool: 'mcp__snake-hub__fortschritt' }, async ($, e) => {
+  on('tool.call', { tool: TOOL_ID }, async ($, e) => {
     const s = await read($, settings)
     if (!s.mods.fortschritt) {
       return { result: 'Der Fortschrittsbalken ist ausgeschaltet.' }
     }
     const input = (e as unknown as { input?: Record<string, unknown> }).input ?? (e as unknown as Record<string, unknown>)
-    const prozent = Math.max(0, Math.min(100, Number(input.prozent) || 0))
-    const aufgabe = String(input.aufgabe ?? '')
-    const schritt = String(input.schritt ?? '')
-    await update($, fortschritt, () => ({ prozent, aufgabe, schritt }))
-    if (!s.mods.uhr) {
-      $.ui.status(`📊 ${aufgabe}: ${Math.round(prozent)} %`)
-    }
-    if (prozent >= 100) {
-      $.ui.toast(`🎉 ${aufgabe} ist fertig – du kannst es abholen!`)
-    }
+    const prozent = Math.max(0, Math.min(99, Number(input.prozent) || 0))
+    await update($, fortschritt, f => ({
+      ...f,
+      prozent,
+      aufgabe: String(input.aufgabe ?? f.aufgabe),
+      schritt: String(input.schritt ?? f.schritt),
+      laeuft: true,
+      manuell: true,
+    }))
     return { result: `Fortschritt angezeigt: ${Math.round(prozent)} %` }
   })
 
-  on('tool.call', { tool: 'Edit' }, async ($, e, next) => {
+  on('tool.call', async ($, e, next) => {
+    if (e.tool === TOOL_ID) {
+      return next(e)
+    }
     const s = await read($, settings)
-    return s.mods.schutz && SCHUTZ.test(e.file_path) ? { deny: `🛡️ Datei-Schutz: ${e.file_path} ist geschützt. Schalte die Mod „schutz“ aus, wenn du sie wirklich ändern willst.` } : next(e)
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: 'Datei-Schutz konnte nicht prüfen.' }))
+    const roh = e as unknown as Record<string, unknown>
+    const was = beschreibe(e.tool, roh)
 
-  on('tool.call', { tool: 'Write' }, async ($, e, next) => {
-    const s = await read($, settings)
-    return s.mods.schutz && SCHUTZ.test(e.file_path) ? { deny: `🛡️ Datei-Schutz: ${e.file_path} ist geschützt. Schalte die Mod „schutz“ aus, wenn du sie wirklich ändern willst.` } : next(e)
-  }).catch(($, e, next) => (next.called ? next(e) : { deny: 'Datei-Schutz konnte nicht prüfen.' }))
+    if (s.mods.schutz && (e.tool === 'Edit' || e.tool === 'Write') && SCHUTZ.test(String(roh.file_path ?? ''))) {
+      return { deny: `🛡️ Datei-Schutz: ${dateiname(roh.file_path)} ist geschützt. Schalte die Mod „schutz“ im Snake-Hub aus, wenn du sie wirklich ändern willst.` }
+    }
+
+    const id = `${e.tool_use_id}`
+    schritte += 1
+    await update($, aktivitaet, list => [...list, { id, icon: was.icon, text: was.text, fertig: false, fehler: false }].slice(-12))
+    await update($, statistik, st => ({
+      ...st,
+      werkzeuge: st.werkzeuge + 1,
+      dateien: was.datei !== undefined && !st.dateien.includes(was.datei) ? [...st.dateien, was.datei] : st.dateien,
+    }))
+    await update($, fortschritt, f => (f.manuell ? { ...f, schritt: was.text } : {
+      ...f,
+      prozent: Math.min(92, Math.round(5 + 87 * (1 - Math.pow(0.82, schritte)))),
+      schritt: was.text,
+      laeuft: true,
+    }))
+
+    const ran = await next(e)
+    const fehler = ran.deny !== undefined || ran.isError === true
+    await update($, aktivitaet, list => list.map(a => (a.id === id ? { ...a, fertig: true, fehler } : a)))
+    return ran
+  }).catch(($, e, next) => (next.called ? next(e) : next(e)))
 
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
     const s = await read($, settings)
-    if (s.mods.fertig) {
-      $.ui.toast('✅ Claude ist fertig')
+    const f = await read($, fortschritt)
+    if (f.laeuft) {
+      await update($, fortschritt, x => ({ ...x, prozent: 100, schritt: 'Fertig', laeuft: false }))
+      if (s.mods.fertig) {
+        $.ui.toast(`✅ Fertig: ${f.aufgabe}`)
+      }
     }
     return result
+  })
+
+  // ---------- Leiste über dem Eingabefeld ----------
+
+  on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    const s = await read($, settings)
+    const f = await read($, fortschritt)
+    if (!s.mods.leiste || !s.mods.fortschritt || f.aufgabe === '' || e.props.hasSurvey) {
+      return next(e)
+    }
+    const { Box, Text } = $.ui.resolve(e)
+    return (
+      <Box gap={1}>
+        <Text color={f.laeuft ? 'claude' : 'success'}>{f.laeuft ? '▶' : '✓'}</Text>
+        <Text mono color={f.laeuft ? 'claude' : 'success'}>{balken(f.prozent, 16)}</Text>
+        <Text tabular weight="semibold">{Math.round(f.prozent)} %</Text>
+        <Text dimColor>{kurz(f.laeuft ? f.schritt : f.aufgabe, 46)}</Text>
+      </Box>
+    )
+  })
+
+  // ---------- Animierter Hintergrund ----------
+
+  on('ui.render', { component: 'Backdrop' }, async ($, e, next) => {
+    const svg = SCENES[e.props.scene]
+    if ((e.surface !== 'desktop' && e.surface !== 'mobile') || svg === undefined) {
+      return next(e)
+    }
+    const { Svg } = $.ui.resolve(e)
+    return <Svg source={svg} alt={SCENE_ALT[e.props.scene] ?? 'Animierter Hintergrund'} isInteractive />
   })
 
   // ---------- Panel ----------
@@ -273,14 +378,21 @@ export const register: Register = on => {
     const { Box, Text, Button } = $.ui.resolve(e)
     const s = await read($, settings)
     const f = await read($, fortschritt)
+    const feed = await read($, aktivitaet)
+    const st = await read($, statistik)
+    const jetzt = await $.clock.now()
+    const t = THEME_SEEDS[s.theme]
 
     const setTheme = (id: string) => async () => {
-      await save($, x => ({ ...x, theme: id }))
-      await applyTheme($, id)
+      const x = await save($, y => ({ ...y, theme: id }))
+      await applyTheme($, x)
     }
     const toggleMod = (id: string) => async () => {
       const x = await save($, y => ({ ...y, mods: { ...y.mods, [id]: !y.mods[id] } }))
       applyTimers($, x)
+      if (id === 'szenen') {
+        await applyTheme($, x)
+      }
     }
     const toggleSkill = (id: string) => async () => {
       await save($, y => ({ ...y, skills: { ...y.skills, [id]: !y.skills[id] } }))
@@ -288,52 +400,76 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column" gap={1}>
+        <Box flexDirection="column">
+          <Text size="title" weight="bold">🐍 Snake-Hub</Text>
+          <Text dimColor>{t ? `${t.emoji} ${t.name}` : 'Kein Theme'} · {SKILLS.filter(k => s.skills[k.id]).length} Skills · {MODS.filter(m => s.mods[m.id]).length} Mods aktiv</Text>
+        </Box>
+
         {s.mods.fortschritt && (
-          <Box flexDirection="column">
-            <Text bold>Fortschritt</Text>
+          <Box flexDirection="column" borderStyle="round" paddingX={1}>
+            <Text size="heading" weight="bold">📊 Fortschritt</Text>
             {f.aufgabe === '' ? (
-              <Text dimColor>Noch kein Projekt läuft.</Text>
+              <Text dimColor>Schick mir eine Aufgabe, dann läuft hier der Balken mit.</Text>
             ) : (
               <Box flexDirection="column">
-                <Text>{f.aufgabe}</Text>
-                <Text>{balken(f.prozent)} {Math.round(f.prozent)} %</Text>
-                {f.schritt !== '' && <Text dimColor>{f.schritt}</Text>}
-                {f.prozent >= 100 && <Text bold>🎉 Fertig – kann abgeholt werden!</Text>}
+                <Text weight="semibold">{f.aufgabe}</Text>
+                <Text mono color={f.laeuft ? 'claude' : 'success'}>{balken(f.prozent)} {Math.round(f.prozent)} %</Text>
+                <Text dimColor>{f.laeuft ? f.schritt : '🎉 Fertig – kann abgeholt werden!'}</Text>
               </Box>
             )}
           </Box>
         )}
 
-        {s.mods.knoepfe && (
-          <Box flexDirection="column">
-            <Text bold>Schnellknöpfe</Text>
-            {KNOEPFE.map(k => (
-              <Button key={`k-${k.label}`} label={k.label} onPress={() => void $.prompt.submit({ text: k.prompt })} />
+        {s.mods.statistik && (
+          <Box flexDirection="column" borderStyle="round" paddingX={1}>
+            <Text size="heading" weight="bold">📈 Diese Sitzung</Text>
+            <Text tabular>⏱️ {Math.max(0, Math.floor((jetzt - st.start) / 60000))} min   💬 {st.antworten} Aufträge</Text>
+            <Text tabular>🔧 {st.werkzeuge} Werkzeug-Schritte   📁 {st.dateien.length} Dateien geändert</Text>
+          </Box>
+        )}
+
+        {s.mods.aktivitaet && (
+          <Box flexDirection="column" borderStyle="round" paddingX={1}>
+            <Text size="heading" weight="bold">📜 Was Claude gerade tut</Text>
+            {feed.length === 0 && <Text dimColor>Noch nichts passiert.</Text>}
+            {feed.slice(-8).reverse().map(a => (
+              <Text key={a.id} dimColor={a.fertig && !a.fehler} color={a.fehler ? 'error' : undefined}>
+                {a.fertig ? (a.fehler ? '✗' : '✓') : '…'} {a.icon} {a.text}
+              </Text>
             ))}
           </Box>
         )}
 
-        <Box flexDirection="column">
-          <Text bold>Theme</Text>
-          {Object.entries(THEME_SEEDS).map(([id, t]) => (
-            <Button key={`t-${id}`} label={`${s.theme === id ? '●' : '○'} ${t.emoji} ${t.name}`} onPress={() => void setTheme(id)()} />
+        {s.mods.knoepfe && (
+          <Box flexDirection="column" borderStyle="round" paddingX={1}>
+            <Text size="heading" weight="bold">🎛️ Schnellknöpfe</Text>
+            {KNOEPFE.map(k => (
+              <Button key={`k-${k.label}`} label={k.label} onPress={() => void sende($, k.prompt)} />
+            ))}
+          </Box>
+        )}
+
+        <Box flexDirection="column" borderStyle="round" paddingX={1}>
+          <Text size="heading" weight="bold">🎨 Theme</Text>
+          {Object.entries(THEME_SEEDS).map(([id, th]) => (
+            <Button key={`t-${id}`} label={`${s.theme === id ? '●' : '○'} ${th.emoji} ${th.name}`} onPress={() => void setTheme(id)()} />
           ))}
           <Button key="t-aus" label={`${s.theme === 'aus' ? '●' : '○'} Aus`} onPress={() => void setTheme('aus')()} />
         </Box>
 
-        <Box flexDirection="column">
-          <Text bold>Mods</Text>
+        <Box flexDirection="column" borderStyle="round" paddingX={1}>
+          <Text size="heading" weight="bold">🧩 Mods</Text>
           {MODS.map(m => (
             <Button key={`m-${m.id}`} label={`${s.mods[m.id] ? '● AN ' : '○ AUS'}  ${m.name}`} onPress={() => void toggleMod(m.id)()} />
           ))}
         </Box>
 
-        <Box flexDirection="column">
-          <Text bold>Skills</Text>
+        <Box flexDirection="column" borderStyle="round" paddingX={1}>
+          <Text size="heading" weight="bold">🧠 Skills</Text>
           {SKILLS.map(k => (
             <Button key={`s-${k.id}`} label={`${s.skills[k.id] ? '● AN ' : '○ AUS'}  ${k.name}`} onPress={() => void toggleSkill(k.id)()} />
           ))}
-          <Text dimColor>Skill-Änderungen gelten ab deiner nächsten Nachricht.</Text>
+          <Text dimColor size="caption">Skill-Änderungen gelten ab deiner nächsten Nachricht.</Text>
         </Box>
       </Box>
     )
