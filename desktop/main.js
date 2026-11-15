@@ -1,7 +1,8 @@
 // Snake-Desktop: lässt die Snake-Hub-Hintergründe über den ganzen Bildschirm fallen.
 // Ein durchsichtiges Fenster pro Bildschirm, immer im Vordergrund, alle Klicks gehen durch.
 
-const { app, BrowserWindow, Tray, Menu, screen, nativeTheme, nativeImage, ipcMain } = require('electron')
+const { app, BrowserWindow, Tray, Menu, screen, nativeTheme, nativeImage, ipcMain, net, Notification } = require('electron')
+const { spawn } = require('child_process')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
@@ -12,13 +13,64 @@ const FILE = path.join(DIR, 'desktop.json')
 const DEFAULTS = { an: true, theme: 'herbst', modus: 'dunkel', staerke: 'normal' }
 const NAMEN = {
   herbst: '🍂 Herbstlaub', herbstnacht: '🍁 Herbstnacht', sakura: '🌸 Sakura', mitternacht: '🌙 Mitternacht',
-  ozean: '🌊 Ozean', wald: '🌲 Wald', schnee: '❄️ Schnee', regen: '🌧️ Regen', lagerfeuer: '🔥 Lagerfeuer',
+  ozean: '🌊 Ozean', wald: '🌲 Wald', schnee: '❄️ Schnee', regen: '🌧️ Regen', lagerfeuer: '🔥 Lagerfeuer', polarlicht: '🌌 Polarlicht',
 }
 const STAERKEN = { dezent: 'Dezent', normal: 'Normal', kraeftig: 'Kräftig' }
 
 let settings = { ...DEFAULTS }
 let windows = []
 let tray = null
+let updateStatus = ''
+
+// ---------- Selbst-Update ----------
+// Prüft beim Start und alle 4 Stunden das neueste GitHub-Release "desktop-vX.Y.Z".
+// Ist es neuer, wird die Setup-Datei geladen und still installiert; danach startet das Programm neu.
+
+const RELEASES = 'https://api.github.com/repos/snake10-cool/Lenox-Claude-mods/releases?per_page=10'
+
+function neuer(a, b) {
+  const x = a.split('.').map(Number), y = b.split('.').map(Number)
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0)
+  return false
+}
+
+async function updatePruefen(vonHand) {
+  if (!app.isPackaged) return
+  try {
+    const res = await net.fetch(RELEASES, { headers: { 'User-Agent': 'Snake-Desktop', Accept: 'application/vnd.github+json' } })
+    if (!res.ok) throw new Error(`GitHub antwortet ${res.status}`)
+    const releases = await res.json()
+    const passend = releases
+      .filter(r => !r.draft && /^desktop-v\d+\.\d+\.\d+$/.test(r.tag_name))
+      .map(r => ({ version: r.tag_name.replace('desktop-v', ''), asset: r.assets.find(a => a.name === 'Snake-Desktop-Setup.exe') }))
+      .filter(r => r.asset !== undefined)
+      .sort((a, b) => (neuer(a.version, b.version) ? -1 : 1))[0]
+    if (passend === undefined || !neuer(passend.version, app.getVersion())) {
+      updateStatus = `Aktuell (${app.getVersion()})`
+      if (vonHand) hinweis('Snake-Desktop ist aktuell', `Version ${app.getVersion()}`)
+      menue()
+      return
+    }
+    updateStatus = `Lade ${passend.version} …`
+    menue()
+    const datei = path.join(os.tmpdir(), `Snake-Desktop-Setup-${passend.version}.exe`)
+    const dl = await net.fetch(passend.asset.browser_download_url, { headers: { 'User-Agent': 'Snake-Desktop' } })
+    if (!dl.ok) throw new Error(`Download fehlgeschlagen (${dl.status})`)
+    fs.writeFileSync(datei, Buffer.from(await dl.arrayBuffer()))
+    hinweis('Snake-Desktop wird aktualisiert', `Version ${passend.version} wird installiert, das dauert ein paar Sekunden.`)
+    // Still installieren und danach wieder starten.
+    spawn(datei, ['/S', '--force-run'], { detached: true, stdio: 'ignore' }).unref()
+    setTimeout(() => app.quit(), 500)
+  } catch (err) {
+    updateStatus = 'Update-Prüfung fehlgeschlagen'
+    if (vonHand) hinweis('Update-Prüfung fehlgeschlagen', String(err && err.message ? err.message : err))
+    menue()
+  }
+}
+
+function hinweis(titel, text) {
+  if (Notification.isSupported()) new Notification({ title: titel, body: text, silent: true }).show()
+}
 
 function lesen() {
   try {
@@ -92,6 +144,9 @@ function menue() {
     { label: 'Stärke', submenu: Object.entries(STAERKEN).map(([id, name]) => ({ label: name, type: 'radio', checked: settings.staerke === id, click: () => schreiben({ staerke: id }) })) },
     { label: 'Hell / Dunkel', submenu: [['dunkel', 'Dunkel'], ['hell', 'Hell'], ['auto', 'Wie Windows']].map(([id, name]) => ({ label: name, type: 'radio', checked: settings.modus === id, click: () => schreiben({ modus: id }) })) },
     { type: 'separator' },
+    { label: `Version ${app.getVersion()}${updateStatus ? ` · ${updateStatus}` : ''}`, enabled: false },
+    { label: 'Nach Updates suchen', click: () => updatePruefen(true) },
+    { type: 'separator' },
     { label: 'Mit Windows starten', type: 'checkbox', checked: autostart, click: () => { app.setLoginItemSettings({ openAtLogin: !autostart }); menue() } },
     { label: 'Beenden', click: () => app.quit() },
   ]))
@@ -137,6 +192,8 @@ if (!app.requestSingleInstanceLock()) {
         }
       }
     }, 2000)
+    setTimeout(() => updatePruefen(false), 15000)
+    setInterval(() => updatePruefen(false), 4 * 60 * 60 * 1000)
     screen.on('display-added', fensterBauen)
     screen.on('display-removed', fensterBauen)
     screen.on('display-metrics-changed', fensterBauen)

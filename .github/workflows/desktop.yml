@@ -23,16 +23,33 @@ jobs:
       - run: npm ci
       - run: npm run scenes
       - run: npm run dist
-      - name: Als Release "desktop" veröffentlichen
+      - name: Version lesen
+        id: v
+        shell: bash
+        run: echo "version=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Versions-Release (für das Selbst-Update)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: desktop-v${{ steps.v.outputs.version }}
+          name: Snake-Desktop ${{ steps.v.outputs.version }}
+          body: |
+            Snake-Desktop ${{ steps.v.outputs.version }} für Windows. Ab Version 0.4 aktualisiert sich das Programm selbst.
+            - Snake-Desktop-Setup.exe: installieren
+            - Snake-Desktop-Portable.exe: ohne Installation starten (aktualisiert sich nicht selbst)
+          files: |
+            desktop/dist/Snake-Desktop-Setup.exe
+            desktop/dist/Snake-Desktop-Portable.exe
+          make_latest: true
+      - name: Fester Link "desktop" (immer die neueste Version)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: desktop
           name: Snake-Desktop (neueste Version)
           body: |
-            Snake-Desktop für Windows: Blätter, Blüten, Schnee, Regen und Funken über dem ganzen Bildschirm.
-            - Snake-Desktop-Setup.exe: installieren (Startmenü- und Desktop-Symbol)
+            Immer die neueste Version (${{ steps.v.outputs.version }}). Ab Version 0.4 aktualisiert sich Snake-Desktop selbst.
+            - Snake-Desktop-Setup.exe: installieren (empfohlen, mit Selbst-Update)
             - Snake-Desktop-Portable.exe: ohne Installation starten
           files: |
             desktop/dist/Snake-Desktop-Setup.exe
             desktop/dist/Snake-Desktop-Portable.exe
-          make_latest: true
+          make_latest: false

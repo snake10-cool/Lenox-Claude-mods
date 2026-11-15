@@ -7,14 +7,14 @@
     {
       "name": "snake-hub",
       "source": "./plugins/snake-hub",
-      "description": "Schaltzentrale: 9 animierte Themes, 11 Mods und 7 Skills, alles einzeln an- und ausschaltbar",
-      "version": "0.6.1"
+      "description": "Schaltzentrale: 10 animierte Themes, 14 Mods und 8 Skills, alles einzeln an- und ausschaltbar",
+      "version": "0.7.0"
     },
     {
       "name": "snake-skills",
       "source": "./plugins/snake-skills",
-      "description": "5 Skills: Spiel bauen, Bug-Jagd, Flutter-Release, Einfach erklärt, Game-Guide",
-      "version": "0.1.0"
+      "description": "6 Skills: Spiel bauen, Bug-Jagd, Flutter-Release, Einfach erklärt, Game-Guide, Ordner aufräumen",
+      "version": "0.2.0"
     }
   ]
 }

@@ -1,7 +1,7 @@
 {
   "name": "snake-desktop",
   "productName": "Snake-Desktop",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Lässt die Snake-Hub-Hintergründe (Blätter, Blüten, Schnee, Regen, Funken) über den ganzen Bildschirm fallen.",
   "main": "main.js",
   "license": "MIT",
@@ -19,10 +19,33 @@
   "build": {
     "appId": "cool.snake10.desktop",
     "productName": "Snake-Desktop",
-    "files": ["main.js", "preload.js", "overlay.html", "scenes.js", "tray.png"],
-    "directories": { "output": "dist", "buildResources": "build" },
-    "win": { "icon": "build/icon.ico", "target": ["nsis", "portable"] },
-    "nsis": { "oneClick": true, "artifactName": "Snake-Desktop-Setup.${ext}", "createDesktopShortcut": true },
-    "portable": { "artifactName": "Snake-Desktop-Portable.${ext}" }
+    "files": [
+      "main.js",
+      "preload.js",
+      "overlay.html",
+      "scenes.js",
+      "tray.png"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "artifactName": "Snake-Desktop-Setup.${ext}",
+      "createDesktopShortcut": true,
+      "runAfterFinish": true,
+      "perMachine": false
+    },
+    "portable": {
+      "artifactName": "Snake-Desktop-Portable.${ext}"
+    }
   }
 }

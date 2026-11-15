@@ -214,6 +214,24 @@ function lagerfeuer(): string {
   return wrap('lagerfeuer', s.defs, style, fire(160) + fire(1440) + sparks)
 }
 
+function polarlicht(): string {
+  const r = rng(83)
+  const s = sky('polarlicht', ['#d8e6ee', '#c4d6e2'], ['#050b14', '#0b1a24'])
+  const band = (y: number, cls: string, dur: number) =>
+    `<path class="band ${cls}" style="animation-duration:${dur}s" d="M-200 ${y} C200 ${y - 90} 500 ${y + 70} 800 ${y - 20} S1400 ${y - 110} 1800 ${y - 10} L1800 ${y + 140} C1400 ${y + 40} 1100 ${y + 170} 800 ${y + 100} S200 ${y + 60} -200 ${y + 150} Z"/>`
+  let stars = ''
+  for (let i = 0; i < 80; i++) {
+    stars += `<circle cx="${(r() * W).toFixed(0)}" cy="${(r() * H * 0.8).toFixed(0)}" r="${(0.7 + r() * 1.5).toFixed(1)}" class="star" style="animation-duration:${(2 + r() * 4).toFixed(1)}s;animation-delay:${(-r() * 6).toFixed(1)}s"/>`
+  }
+  const style = s.style +
+    `.band{mix-blend-mode:screen;filter:blur(18px);transform-box:fill-box;transform-origin:center;animation:wogen ease-in-out infinite alternate}` +
+    `.a1{fill:#3fd8a0;opacity:.35}.a2{fill:#2fb6d8;opacity:.28}.a3{fill:#9a6ae0;opacity:.22}` +
+    `@keyframes wogen{from{transform:translateX(-60px) scaleY(.85)}to{transform:translateX(60px) scaleY(1.15)}}` +
+    `.star{fill:#6a7d94;animation:tw ease-in-out infinite alternate}@keyframes tw{from{opacity:.15}to{opacity:.9}}` +
+    `@media (prefers-color-scheme: dark){.a1{opacity:.55}.a2{opacity:.45}.a3{opacity:.38}.star{fill:#e8f2ff}}`
+  return wrap('polarlicht', s.defs, style, stars + band(200, 'a1', 11) + band(300, 'a2', 14) + band(130, 'a3', 17))
+}
+
 export const SCENES: Record<string, string> = {
   herbst: herbst(),
   sakura: sakura(),
@@ -224,6 +242,7 @@ export const SCENES: Record<string, string> = {
   schnee: schnee(),
   regen: regen(),
   lagerfeuer: lagerfeuer(),
+  polarlicht: polarlicht(),
 }
 
 export const SCENE_ALT: Record<string, string> = {
@@ -236,4 +255,5 @@ export const SCENE_ALT: Record<string, string> = {
   schnee: 'Schneeflocken fallen auf eine Schneedecke',
   regen: 'Regen fällt schräg, unten bilden sich Pfützenringe',
   lagerfeuer: 'Zwei Lagerfeuer flackern, Funken steigen auf',
+  polarlicht: 'Grüne und violette Polarlichter wogen über einem Sternenhimmel',
 }

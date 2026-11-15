@@ -11,6 +11,9 @@ import { THEME_SEEDS } from './themes'
 const MODS: { id: string; name: string }[] = [
   { id: 'szenen', name: '🎞️ Animierter Hintergrund' },
   { id: 'desktop', name: '🖥️ Auch auf dem ganzen PC (Snake-Desktop)' },
+  { id: 'tageszeit', name: '🌗 Theme nach Tageszeit (nachts dunkler)' },
+  { id: 'wetter', name: '🌦️ Theme nach Wetter (Regen, Schnee)' },
+  { id: 'sound', name: '🔔 Sanfte Sounds' },
   { id: 'fortschritt', name: '📊 Fortschrittsbalken' },
   { id: 'leiste', name: '▶️ Leiste über dem Eingabefeld' },
   { id: 'aktivitaet', name: '📜 Aktivitäts-Feed' },
@@ -28,6 +31,7 @@ const SKILLS: { id: string; name: string; context: string }[] = [
   { id: 'flutter-release', name: '📱 Flutter-Release', context: 'Skill „snake-skills:flutter-release“ ist AN: Bei Play-Store-Veröffentlichung oder Release-Version lade diesen Skill und folge ihm.' },
   { id: 'einfach-erklaert', name: '🧠 Einfach erklärt', context: 'Skill „snake-skills:einfach-erklaert“ ist AN: Wenn der Nutzer etwas verstehen will, lade diesen Skill und folge ihm.' },
   { id: 'game-guide', name: '🕹️ Game-Guide', context: 'Skill „snake-skills:game-guide“ ist AN: Bei Fragen zu Videospielen, Achievements oder Spieltipps lade diesen Skill und folge ihm.' },
+  { id: 'ordner-aufraeumen', name: '🗂️ Ordner aufräumen', context: 'Skill „snake-skills:ordner-aufraeumen“ ist AN: Wenn der Nutzer Desktop oder Ordner aufräumen will, lade diesen Skill und folge ihm.' },
   { id: 'kurz-knapp', name: '✂️ Kurz & knapp', context: 'Modus „Kurz & knapp“ ist AN: Antworte so kurz wie möglich, ohne Einleitung und Wiederholungen.' },
   { id: 'deutsch-immer', name: '🇩🇪 Immer Deutsch', context: 'Modus „Immer Deutsch“ ist AN: Antworte immer auf Deutsch und schreibe Code-Kommentare auf Deutsch.' },
 ]
@@ -55,8 +59,8 @@ const DEFAULTS: HubSettings = {
   theme: 'herbst',
   modus: 'dunkel',
   staerke: 'normal',
-  mods: { szenen: true, desktop: true, fortschritt: true, leiste: true, aktivitaet: true, statistik: true, knoepfe: true, uhr: false, pause: false, schutz: true, fertig: true },
-  skills: { 'spiel-bauen': true, 'bug-jagd': true, 'flutter-release': true, 'einfach-erklaert': true, 'game-guide': true, 'kurz-knapp': false, 'deutsch-immer': true },
+  mods: { szenen: true, desktop: true, tageszeit: false, wetter: false, sound: false, fortschritt: true, leiste: true, aktivitaet: true, statistik: true, knoepfe: true, uhr: false, pause: false, schutz: true, fertig: true },
+  skills: { 'spiel-bauen': true, 'bug-jagd': true, 'flutter-release': true, 'einfach-erklaert': true, 'game-guide': true, 'ordner-aufraeumen': true, 'kurz-knapp': false, 'deutsch-immer': true },
 }
 
 // ---------- Themes ----------
@@ -68,6 +72,8 @@ for (const [id, s] of Object.entries(THEME_SEEDS)) {
 
 // ---------- Zustand ----------
 
+const VERSION = '0.7.0'
+const MARKETPLACE_URL = 'https://raw.githubusercontent.com/snake10-cool/Lenox-Claude-mods/main/.claude-plugin/marketplace.json'
 const PANE = 'snake-hub'
 const TITEL = '🐍 Snake-Hub'
 const TOOL_ID = 'mcp__snake-hub__fortschritt'
@@ -82,6 +88,81 @@ const tab = atom({ plugin: 'snake-hub', key: 'tab' } as const, 'start', { shape:
 const statistik = atom({ plugin: 'snake-hub', key: 'statistik' } as const, { antworten: 0, werkzeuge: 0, dateien: [], start: 0 } as Statistik, { shape: 'statistik-1' })
 
 let uhrTimer: { cancel: () => void } | undefined
+let autoTimer: { cancel: () => void } | undefined
+let wetterLage: 'regen' | 'schnee' | 'klar' | undefined
+let letztesEff = ''
+let neueVersion: string | undefined
+
+function neuer(a: string, b: string): boolean {
+  const x = a.split('.').map(Number), y = b.split('.').map(Number)
+  for (let i = 0; i < 3; i++) {
+    if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0)
+  }
+  return false
+}
+
+async function updatePruefen($: EngineInterface): Promise<void> {
+  const res = await $.http.fetch(MARKETPLACE_URL)
+  if (!res.ok) return
+  const eintrag = (JSON.parse(res.text) as { plugins?: { name: string; version?: string }[] }).plugins?.find(p => p.name === 'snake-hub')
+  if (eintrag?.version !== undefined && neuer(eintrag.version, VERSION)) {
+    neueVersion = eintrag.version
+    $.ui.toast(`🐍 Snake-Hub ${eintrag.version} ist da. Tipp /hub-update für die zwei Klicks.`)
+  }
+}
+
+const UPDATE_TEXT = [
+  'So holst du das Update (Desktop-App):',
+  '1. Plus neben dem Eingabefeld → Plugins (oder Einstellungen → Deine Plugins)',
+  '2. Beim Marketplace lenox-claude-mods auf „Synchronisieren“',
+  '3. Bei Snake hub auf „Aktualisieren“, dann eine neue Sitzung starten',
+  'Tipp: Wenn die App beim Marketplace „Automatisch aktualisieren“ anbietet, schalte es ein, dann entfällt Schritt 2 und 3.',
+].join('\n')
+
+type Ort = { name: string; lat: number; lon: number }
+
+// Was gerade wirklich angezeigt wird: gewähltes Theme, ggf. ersetzt durch Wetter oder Nacht.
+function effektiv(s: HubSettings, stunde: number): { id: string; grund: string } {
+  if (s.theme === 'aus' || PALETTES[s.theme] === undefined) {
+    return { id: s.theme, grund: '' }
+  }
+  if (s.mods.wetter && wetterLage === 'regen') {
+    return { id: 'regen', grund: 'wegen Regen' }
+  }
+  if (s.mods.wetter && wetterLage === 'schnee') {
+    return { id: 'schnee', grund: 'wegen Schnee' }
+  }
+  const nacht = stunde >= 20 || stunde < 6
+  if (s.mods.tageszeit && nacht && !['mitternacht', 'herbstnacht', 'lagerfeuer', 'polarlicht'].includes(s.theme)) {
+    return { id: s.theme === 'herbst' ? 'herbstnacht' : 'mitternacht', grund: 'weil Nacht ist' }
+  }
+  return { id: s.theme, grund: '' }
+}
+
+async function stunde($: EngineInterface): Promise<number> {
+  return new Date(await $.clock.now()).getHours()
+}
+
+async function wetterHolen($: EngineInterface): Promise<void> {
+  const ort = (await $.store.get('ort')) as Ort | undefined
+  if (ort === undefined) {
+    wetterLage = undefined
+    return
+  }
+  const res = await $.http.fetch(`https://api.open-meteo.com/v1/forecast?latitude=${ort.lat}&longitude=${ort.lon}&current=weather_code`)
+  if (!res.ok) {
+    return
+  }
+  const code = Number((JSON.parse(res.text) as { current?: { weather_code?: number } }).current?.weather_code ?? 0)
+  wetterLage = (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95 ? 'regen' : (code >= 71 && code <= 77) || code === 85 || code === 86 ? 'schnee' : 'klar'
+}
+
+async function klang($: EngineInterface, datei: string): Promise<void> {
+  const s = await read($, settings)
+  if (s.mods.sound) {
+    await $.audio.play({ asset: `sounds/${datei}` }, { gain: 0.5 }).catch(() => undefined)
+  }
+}
 let pauseTimer: { cancel: () => void } | undefined
 let schritte = 0
 let letzterKlick = 0
@@ -128,36 +209,56 @@ function merge(saved: unknown): HubSettings {
   }
 }
 
-async function desktopSync($: EngineInterface, s: HubSettings): Promise<void> {
+async function desktopSync($: EngineInterface, s: HubSettings, theme: string): Promise<void> {
   const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
   if (home === undefined) {
     return
   }
-  const daten = { an: s.mods.desktop === true && SCENES[s.theme] !== undefined, theme: s.theme, modus: s.modus, staerke: s.staerke }
+  const daten = { an: s.mods.desktop === true && SCENES[theme] !== undefined, theme, modus: s.modus, staerke: s.staerke }
   await $.fs.write(`${home}/.snake-hub/desktop.json`, JSON.stringify(daten, null, 2))
 }
 
 async function applyTheme($: EngineInterface, s: HubSettings): Promise<string> {
-  void desktopSync($, s).catch(() => undefined)
-  const colors = PALETTES[s.theme]
+  const eff = effektiv(s, await stunde($))
+  void desktopSync($, s, eff.id).catch(() => undefined)
+  if (letztesEff !== '' && letztesEff !== eff.id) {
+    void klang($, 'rascheln.wav')
+  }
+  letztesEff = eff.id
+  const colors = PALETTES[eff.id]
   if (colors === undefined) {
     await $.theme.clear()
     return 'Theme aus (Standard-Aussehen der App)'
   }
   const glass = (STAERKEN.find(x => x.id === s.staerke) ?? STAERKEN[1])?.glass ?? { blur: 3, opacity: 0.4 }
   const scheme = s.modus === 'dunkel' ? { overrideColorScheme: 'dark' as const } : s.modus === 'hell' ? { overrideColorScheme: 'light' as const } : {}
-  const look: ThemeSetArgs = s.mods.szenen && SCENES[s.theme] !== undefined
-    ? { colors, backdrop: { scene: s.theme, glass }, ...scheme }
+  const look: ThemeSetArgs = s.mods.szenen && SCENES[eff.id] !== undefined
+    ? { colors, backdrop: { scene: eff.id, glass }, ...scheme }
     : { colors, ...scheme }
   const set = await $.theme.set(look)
-  const t = THEME_SEEDS[s.theme]
-  const name = `${t?.emoji ?? ''} ${t?.name ?? s.theme}`
+  const t = THEME_SEEDS[eff.id]
+  const name = `${t?.emoji ?? ''} ${t?.name ?? eff.id}${eff.grund ? ` (${eff.grund})` : ''}`
   return set.isDrawn ? `Theme: ${name}` : `Theme: ${name} (wird gezeichnet, sobald die Desktop- oder Handy-App angeschlossen ist)`
 }
 
 function applyTimers($: EngineInterface, s: HubSettings): void {
   uhrTimer?.cancel()
   pauseTimer?.cancel()
+  autoTimer?.cancel()
+  autoTimer = undefined
+  if (s.mods.tageszeit || s.mods.wetter) {
+    const pruefen = async () => {
+      const x = await read($, settings)
+      if (x.mods.wetter) {
+        await wetterHolen($).catch(() => undefined)
+      }
+      if (effektiv(x, await stunde($)).id !== letztesEff) {
+        await applyTheme($, x)
+      }
+    }
+    void pruefen()
+    autoTimer = $.clock.every(10 * 60 * 1000, pruefen)
+  }
   uhrTimer = undefined
   pauseTimer = undefined
   if (s.mods.uhr) {
@@ -206,10 +307,12 @@ export const register: Register = on => {
     applyTimers($, s)
 
     await $.command.register({ name: 'hub', description: 'Öffnet den Snake-Hub und zeigt, was an und aus ist' })
-    await $.command.register({ name: 'look', description: 'Theme wechseln: herbst, herbstnacht, sakura, mitternacht, ozean, wald, schnee, regen, lagerfeuer oder aus' })
+    await $.command.register({ name: 'look', description: 'Theme wechseln: herbst, herbstnacht, sakura, mitternacht, ozean, wald, schnee, regen, lagerfeuer, polarlicht oder aus' })
+    await $.command.register({ name: 'hub-update', description: 'Zeigt, ob es ein Snake-Hub-Update gibt und wie man es holt' })
+    await $.command.register({ name: 'wetter', description: 'Ort fürs Wetter-Theme setzen, z. B. /wetter Braunau am Inn' })
     await $.command.register({ name: 'modus', description: 'Hell oder dunkel: dunkel, hell oder auto' })
     await $.command.register({ name: 'blaetter', description: 'Wie stark der Hintergrund zu sehen ist: dezent, normal oder kraeftig' })
-    await $.command.register({ name: 'mod', description: 'Mod an/aus: szenen, desktop, fortschritt, leiste, aktivitaet, statistik, knoepfe, uhr, pause, schutz, fertig' })
+    await $.command.register({ name: 'mod', description: 'Mod an/aus: szenen, desktop, tageszeit, wetter, sound, fortschritt, leiste, aktivitaet, statistik, knoepfe, uhr, pause, schutz, fertig' })
     await $.command.register({ name: 'skill', description: 'Skill an/aus: spiel-bauen, bug-jagd, flutter-release, einfach-erklaert, game-guide, kurz-knapp, deutsch-immer' })
     await $.command.register({ name: 'mehr-details', description: 'Claude fügt dem Projekt mehr passende Details hinzu' })
     await $.tool.register({
@@ -228,6 +331,7 @@ export const register: Register = on => {
       },
     })
     void $.ui.open({ id: PANE, title: TITEL })
+    void updatePruefen($).catch(() => undefined)
     return next(e)
   })
 
@@ -279,6 +383,29 @@ export const register: Register = on => {
     return { text: `Hintergrund: ${st.name}` }
   })
 
+  on('command.run', { command: 'hub-update' }, async $ => {
+    await updatePruefen($).catch(() => undefined)
+    return { text: neueVersion ? `🐍 Snake-Hub ${neueVersion} ist verfügbar (du hast ${VERSION}).\n${UPDATE_TEXT}` : `✅ Snake-Hub ${VERSION} ist aktuell.` }
+  })
+
+  on('command.run', { command: 'wetter' }, async ($, e) => {
+    const name = (e.args ?? '').trim()
+    if (name === '') {
+      const ort = (await $.store.get('ort')) as Ort | undefined
+      return { text: ort ? `Wetter-Ort: ${ort.name} (gerade: ${wetterLage ?? 'unbekannt'})` : 'Noch kein Ort. Beispiel: /wetter Braunau am Inn' }
+    }
+    const res = await $.http.fetch(`https://geocoding-api.open-meteo.com/v1/search?count=1&language=de&name=${encodeURIComponent(name)}`)
+    const treffer = res.ok ? (JSON.parse(res.text) as { results?: { name: string; latitude: number; longitude: number; country?: string }[] }).results?.[0] : undefined
+    if (treffer === undefined) {
+      return { text: `Ort „${name}“ nicht gefunden.` }
+    }
+    await $.store.set('ort', { name: `${treffer.name}${treffer.country ? `, ${treffer.country}` : ''}`, lat: treffer.latitude, lon: treffer.longitude })
+    await wetterHolen($).catch(() => undefined)
+    const s = await save($, x => ({ ...x, mods: { ...x.mods, wetter: true } }))
+    applyTimers($, s)
+    return { text: `Wetter-Ort: ${treffer.name}. Gerade: ${wetterLage ?? 'unbekannt'}. ${await applyTheme($, s)}` }
+  }).catch(() => ({ text: 'Wetter konnte nicht abgefragt werden.' }))
+
   on('command.run', { command: 'mod' }, async ($, e) => {
     const id = (e.args ?? '').trim().toLowerCase()
     const mod = MODS.find(m => m.id === id)
@@ -287,7 +414,7 @@ export const register: Register = on => {
     }
     const s = await save($, x => ({ ...x, mods: { ...x.mods, [id]: !x.mods[id] } }))
     applyTimers($, s)
-    if (id === 'szenen' || id === 'desktop') {
+    if (['szenen', 'desktop', 'tageszeit', 'wetter'].includes(id)) {
       await applyTheme($, s)
     }
     return { text: `${mod.name}: ${s.mods[id] ? 'AN' : 'AUS'}` }
@@ -392,6 +519,7 @@ export const register: Register = on => {
       if (s.mods.fertig) {
         $.ui.toast(`✅ Fertig: ${f.aufgabe}`)
       }
+      void klang($, 'fertig.wav')
     }
     return result
   })
@@ -445,7 +573,7 @@ export const register: Register = on => {
     const toggleMod = (id: string) => async () => {
       const x = await save($, y => ({ ...y, mods: { ...y.mods, [id]: !y.mods[id] } }))
       applyTimers($, x)
-      if (id === 'szenen' || id === 'desktop') {
+      if (['szenen', 'desktop', 'tageszeit', 'wetter'].includes(id)) {
         await applyTheme($, x)
       }
     }
@@ -485,11 +613,18 @@ export const register: Register = on => {
     return (
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column">
-          <Text size="title" weight="bold">🐍 Snake-Hub</Text>
+          <Text size="title" weight="bold">🐍 Snake-Hub <Text size="caption" dimColor>v{VERSION}</Text></Text>
           <Text dimColor size="footnote">
             {t ? `${t.emoji} ${t.name}` : 'Kein Theme'} · {s.modus === 'hell' ? 'Hell' : s.modus === 'auto' ? 'Wie Windows' : 'Dunkel'} · {MODS.filter(m => s.mods[m.id]).length}/{MODS.length} Mods · {SKILLS.filter(k => s.skills[k.id]).length}/{SKILLS.length} Skills
           </Text>
         </Box>
+
+        {neueVersion !== undefined && (
+          <Box borderStyle="round" paddingX={1} flexDirection="column">
+            <Text weight="bold" color="claude">⬆️ Snake-Hub {neueVersion} ist da</Text>
+            <Text size="footnote" dimColor>Plugins → Marketplace synchronisieren → Snake hub aktualisieren. Details: /hub-update</Text>
+          </Box>
+        )}
 
         {Chips(REITER.map(r => ({ id: `r-${r.id}`, label: r.label, aktiv: reiter === r.id, los: () => void update($, tab, () => r.id) })))}
 
@@ -546,6 +681,8 @@ export const register: Register = on => {
               <Box flexDirection="column">
                 {Schalter('w-szenen', 'In Claude', s.mods.szenen === true, () => void toggleMod('szenen')())}
                 {Schalter('w-desktop', 'Auf dem ganzen PC (Snake-Desktop)', s.mods.desktop === true, () => void toggleMod('desktop')())}
+                {Schalter('w-tag', 'Nachts automatisch dunkler', s.mods.tageszeit === true, () => void toggleMod('tageszeit')())}
+                {Schalter('w-wetter', 'Theme nach Wetter (Ort mit /wetter)', s.mods.wetter === true, () => void toggleMod('wetter')())}
               </Box>
             ))}
           </Box>

@@ -56,4 +56,10 @@ export const THEME_SEEDS: Record<string, Seed> = {
     light: { 'surface-0': '#f0dcc4', 'surface-1': '#f5e5d1', 'surface-2': '#faefe2', 'text-primary': '#2a1a10', 'text-secondary': '#54402c', 'text-muted': '#6c5440' },
     dark: { 'surface-0': '#140c08', 'surface-1': '#1e120b', 'surface-2': '#28180e', 'surface-3': '#301d11', 'text-primary': '#f6e6d4', 'text-secondary': '#dcc4a8', 'text-muted': '#b89c80' },
   },
+  polarlicht: {
+    name: 'Polarlicht', emoji: '🌌',
+    roles: { accent: '#2fa88a', danger: '#c0402f', success: '#3f9a60', warning: '#b08a1e', pro: '#8a5ad0' },
+    light: { 'surface-0': '#d8e6ee', 'surface-1': '#e3eef3', 'surface-2': '#eef5f8', 'text-primary': '#122028', 'text-secondary': '#36505c', 'text-muted': '#4c6672' },
+    dark: { 'surface-0': '#07101a', 'surface-1': '#0c1822', 'surface-2': '#11202c', 'surface-3': '#152633', 'text-primary': '#e2f2f2', 'text-secondary': '#bcd6da', 'text-muted': '#93b2b8' },
+  },
 }

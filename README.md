@@ -24,4 +24,9 @@ Ein kleines Programm, das die Hintergründe des Snake-Hub über den **ganzen Bil
 
 - **Herunterladen:** Releases → „Snake-Desktop (neueste Version)“ → `Snake-Desktop-Setup.exe` (installieren) oder `Snake-Desktop-Portable.exe` (ohne Installation).
 - **Steuern:** über das Blatt-Symbol im Infobereich der Taskleiste (Rechtsklick: Theme, Stärke, Hell/Dunkel, mit Windows starten, Beenden; Linksklick: an/aus) oder direkt im Snake-Hub-Panel in Claude. Beide teilen sich die Datei `%USERPROFILE%\.snake-hub\desktop.json`.
+- **Updates:** Ab Version 0.4 prüft Snake-Desktop beim Start und alle 4 Stunden selbst auf Updates und installiert sie still. Von Hand: Rechtsklick aufs Blatt-Symbol → „Nach Updates suchen“.
 - Windows zeigt beim ersten Start eventuell „Der Computer wurde durch Windows geschützt“, weil das Programm nicht signiert ist: **Weitere Informationen → Trotzdem ausführen**.
+
+## Snake-Hub aktualisieren
+
+Der Hub meldet sich selbst, wenn es eine neue Version gibt (Hinweis oben im Panel und `/hub-update`). Dann: Plugins → Marketplace `lenox-claude-mods` synchronisieren → Snake hub aktualisieren → neue Sitzung. Bietet die App beim Marketplace automatische Updates an, einfach einschalten.
