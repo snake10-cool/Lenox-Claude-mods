@@ -8,7 +8,7 @@
       "name": "snake-hub",
       "source": "./plugins/snake-hub",
       "description": "Schaltzentrale: 10 animierte Themes, 14 Mods und 8 Skills, alles einzeln an- und ausschaltbar",
-      "version": "0.7.0"
+      "version": "0.7.1"
     },
     {
       "name": "snake-skills",

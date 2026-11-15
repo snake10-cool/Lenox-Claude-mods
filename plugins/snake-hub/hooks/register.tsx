@@ -72,7 +72,7 @@ for (const [id, s] of Object.entries(THEME_SEEDS)) {
 
 // ---------- Zustand ----------
 
-const VERSION = '0.7.0'
+const VERSION = '0.7.1'
 const MARKETPLACE_URL = 'https://raw.githubusercontent.com/snake10-cool/Lenox-Claude-mods/main/.claude-plugin/marketplace.json'
 const PANE = 'snake-hub'
 const TITEL = '🐍 Snake-Hub'
@@ -169,10 +169,6 @@ let letzterKlick = 0
 
 // ---------- Hilfsfunktionen ----------
 
-function balken(prozent: number, breite = 22): string {
-  const voll = Math.round((prozent / 100) * breite)
-  return '█'.repeat(voll) + '░'.repeat(breite - voll)
-}
 
 function kurz(text: string, n: number): string {
   const t = text.replace(/\s+/g, ' ').trim()
@@ -536,7 +532,10 @@ export const register: Register = on => {
     return (
       <Box gap={1}>
         <Text color={f.laeuft ? 'claude' : 'success'}>{f.laeuft ? '▶' : '✓'}</Text>
-        <Text mono color={f.laeuft ? 'claude' : 'success'}>{balken(f.prozent, 16)}</Text>
+        <Text mono>
+          <Text backgroundColor={f.laeuft ? 'claude' : 'success'}>{' '.repeat(Math.round((f.prozent / 100) * 24))}</Text>
+          <Text backgroundColor="subtle">{' '.repeat(24 - Math.round((f.prozent / 100) * 24))}</Text>
+        </Text>
         <Text tabular weight="semibold">{Math.round(f.prozent)} %</Text>
         <Text dimColor>{kurz(f.laeuft ? f.schritt : f.aufgabe, 46)}</Text>
       </Box>
@@ -635,7 +634,13 @@ export const register: Register = on => {
             ) : (
               <Box flexDirection="column">
                 <Text weight="semibold">{f.aufgabe}</Text>
-                <Text mono color={f.laeuft ? 'claude' : 'success'}>{balken(f.prozent, 18)} {Math.round(f.prozent)} %</Text>
+                <Box flexDirection="row" gap={1} alignItems="center">
+                  <Text mono>
+                    <Text backgroundColor={f.laeuft ? 'claude' : 'success'}>{' '.repeat(Math.round((f.prozent / 100) * 26))}</Text>
+                    <Text backgroundColor="subtle">{' '.repeat(26 - Math.round((f.prozent / 100) * 26))}</Text>
+                  </Text>
+                  <Text tabular weight="semibold">{Math.round(f.prozent)} %</Text>
+                </Box>
                 <Text dimColor size="footnote">{f.laeuft ? f.schritt : '🎉 Fertig – kann abgeholt werden!'}</Text>
               </Box>
             ))}
