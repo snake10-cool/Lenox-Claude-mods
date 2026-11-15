@@ -1,5 +1,5 @@
 export type Fortschritt = { prozent: number; aufgabe: string; schritt: string; laeuft: boolean; manuell: boolean }
-export type DesktopExtras = { groesse: string; menge: string; wind: boolean; sammeln: boolean; autopause: boolean }
+export type DesktopExtras = { groesse: string; menge: string; wind: boolean; sammeln: boolean; autopause: boolean; kontext: boolean; regeln: Record<string, string> }
 export type HubSettings = {
   theme: string
   modus: string

@@ -70,6 +70,14 @@ const GERAEUSCHE: { id: string; name: string }[] = [
 const GROESSEN = [{ id: 'klein', name: 'Klein' }, { id: 'mittel', name: 'Mittel' }, { id: 'gross', name: 'Groß' }]
 const MENGEN = [{ id: 'wenig', name: 'Wenig' }, { id: 'normal', name: 'Normal' }, { id: 'viel', name: 'Viel' }]
 
+const APP_EFFEKTE: { id: string; name: string }[] = [
+  { id: 'theme', name: '🍂 Theme' }, { id: 'matrix', name: '💚 Matrix' }, { id: 'glitch', name: '📺 Glitch' },
+  { id: 'pixel', name: '🟪 Pixel' }, { id: 'bloecke', name: '🟫 Blöcke' }, { id: 'raster', name: '📐 Raster' },
+  { id: 'funkeln', name: '✨ Funkeln' }, { id: 'heu', name: '🪡 Heu' }, { id: 'kasse', name: '🪙 Münzen' },
+  { id: 'weltraum', name: '🚀 Weltraum' }, { id: 'formen', name: '🔷 Formen' }, { id: 'traenen', name: '💧 Tropfen' },
+  { id: 'aus', name: '⭕ Nichts' },
+]
+
 const ERFOLGE: { id: string; name: string; info: string }[] = [
   { id: 'erster', name: '🌱 Erster Auftrag', info: 'Den ersten Auftrag an Claude geschickt' },
   { id: 'zehn', name: '🔟 Zehn Aufträge', info: '10 Aufträge insgesamt' },
@@ -90,7 +98,7 @@ const DEFAULTS: HubSettings = {
   staerke: 'normal',
   kompakt: false,
   ambient: 'aus',
-  desk: { groesse: 'mittel', menge: 'normal', wind: true, sammeln: true, autopause: true },
+  desk: { groesse: 'mittel', menge: 'normal', wind: true, sammeln: true, autopause: true, kontext: true, regeln: {} },
   mods: { szenen: true, desktop: true, tageszeit: false, wetter: false, saison: true, fokus: true, ziele: true, notizen: true, erfolge: true, sound: false, fortschritt: true, leiste: true, aktivitaet: true, statistik: true, knoepfe: true, uhr: false, pause: false, schutz: true, fertig: true },
   skills: { 'spiel-bauen': true, 'bug-jagd': true, 'flutter-release': true, 'einfach-erklaert': true, 'game-guide': true, 'ordner-aufraeumen': true, 'kurz-knapp': false, 'deutsch-immer': true },
 }
@@ -104,7 +112,7 @@ for (const [id, s] of Object.entries(THEME_SEEDS)) {
 
 // ---------- Zustand ----------
 
-const VERSION = '0.8.0'
+const VERSION = '0.9.0'
 const MARKETPLACE_URL = 'https://raw.githubusercontent.com/snake10-cool/Lenox-Claude-mods/main/.claude-plugin/marketplace.json'
 const PANE = 'snake-hub'
 const TITEL = '🐍 Snake-Hub'
@@ -810,6 +818,15 @@ export const register: Register = on => {
       const x = await save($, y => ({ ...y, desk: { ...y.desk, ...patch } }))
       await applyTheme($, x)
     }
+    let appStatus: { app?: string; kategorie?: string; effekt?: string } = {}
+    if (s.mods.desktop && reiter === 'look') {
+      try {
+        const home = (await $.env.get('USERPROFILE')) ?? (await $.env.get('HOME'))
+        appStatus = JSON.parse(String(await $.fs.read(`${home}/.snake-hub/status.json`))) as typeof appStatus
+      } catch {
+        appStatus = {}
+      }
+    }
     const toggleMod = (id: string) => async () => {
       const x = await save($, y => ({ ...y, mods: { ...y.mods, [id]: !y.mods[id] } }))
       applyTimers($, x)
@@ -1047,6 +1064,14 @@ export const register: Register = on => {
                 {Schalter('dw', '🌬️ Windböen', s.desk.wind, () => void setDesk({ wind: !s.desk.wind })())}
                 {Schalter('ds', '🍂 Blätter sammeln sich unten', s.desk.sammeln, () => void setDesk({ sammeln: !s.desk.sammeln })())}
                 {Schalter('dp', '🎮 Bei Vollbild-Spielen pausieren', s.desk.autopause, () => void setDesk({ autopause: !s.desk.autopause })())}
+                {Schalter('dk', '🧠 Passende Animation zur offenen App', s.desk.kontext, () => void setDesk({ kontext: !s.desk.kontext })())}
+                {s.desk.kontext && appStatus.kategorie !== undefined && (
+                  <Box flexDirection="column">
+                    <Text size="footnote">Gerade offen: <Text weight="semibold">{appStatus.app || 'Desktop'}</Text> ({appStatus.kategorie}) → {APP_EFFEKTE.find(x => x.id === appStatus.effekt)?.name ?? appStatus.effekt}</Text>
+                    {Chips(APP_EFFEKTE.map(x => ({ id: `ae-${x.id}`, label: x.name, aktiv: appStatus.effekt === x.id, los: () => void setDesk({ regeln: { ...s.desk.regeln, [appStatus.kategorie ?? 'sonst']: x.id } })() })))}
+                    <Text dimColor size="caption">Gilt für alle Apps dieser Art. Ändern auch per Rechtsklick aufs Blatt-Symbol → Passend zur App.</Text>
+                  </Box>
+                )}
               </Box>
             ))}
             {Abschnitt('📐 Ansicht', Schalter('kompakt', 'Kompakt (weniger Rahmen, weniger Platz)', k, () => void save($, y => ({ ...y, kompakt: !y.kompakt })))) }

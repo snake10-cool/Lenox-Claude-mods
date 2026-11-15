@@ -20,14 +20,211 @@
   .verborgen { display: none; }
   /* Blätter, die unten liegen bleiben */
   #boden { position: fixed; inset: 0; pointer-events: none; }
+  #fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; transition: opacity .8s ease; }
   .liegt { position: absolute; width: 34px; height: 34px; transition: transform .9s cubic-bezier(.22,1.25,.4,1), opacity 2s ease; }
   .liegt svg { width: 100%; height: 100%; overflow: visible; }
 </style>
 </head>
 <body>
+
 <div id="szene" class="lage"></div>
 <div id="szene2" class="lage spiegel"></div>
 <div id="boden"></div>
+<canvas id="fx"></canvas>
+<script>
+  var maus = { x: -999, y: -999, vx: 0, vy: 0, zeit: 0 }
+  // ---------- Effekte für Apps und Spiele (Zeichenfläche statt SVG) ----------
+  const FX = (() => {
+    const cv = document.getElementById('fx')
+    const cx = cv.getContext('2d')
+    let art = null, g = 1, teile = [], t0 = 0, naechstes = 0, burst = 0, scan = -1
+    const W = () => cv.width, H = () => cv.height
+    const zufall = (a, b) => a + Math.random() * (b - a)
+    // Meist an den Rändern, damit die Mitte frei bleibt.
+    const randX = () => { const r = Math.random(); return r < 0.4 ? zufall(0, W() * 0.2) : r < 0.8 ? zufall(W() * 0.8, W()) : zufall(0, W()) }
+    const ZEICHEN = 'アイウエオカキクケコサシスセソ0123456789{}<>=+*#'
+    const MENGE = { wenig: 0.45, normal: 1, viel: 1.8 }
+
+    function groesse() { cv.width = innerWidth * devicePixelRatio; cv.height = innerHeight * devicePixelRatio; cx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0) }
+    addEventListener('resize', groesse); groesse()
+    const breite = () => innerWidth, hoehe = () => innerHeight
+
+    function neu(a) {
+      const b = breite(), h = hoehe()
+      const x = (() => { const r = Math.random(); return r < 0.4 ? zufall(0, b * 0.2) : r < 0.8 ? zufall(b * 0.8, b) : zufall(0, b) })()
+      switch (a) {
+        case 'matrix': return { x: Math.round(x / 18) * 18, y: zufall(-h, 0), v: zufall(2, 5), z: Array.from({ length: 16 }, () => ZEICHEN[Math.floor(Math.random() * ZEICHEN.length)]) }
+        case 'pixel': return { x, y: zufall(-h, 0), v: zufall(0.6, 1.6), s: zufall(6, 13), f: ['#ff4fd8', '#4fd1ff', '#ffd84f', '#7dff6a', '#b06cff'][Math.floor(Math.random() * 5)], vx: 0 }
+        case 'bloecke': return { x, y: zufall(-h, 0), v: zufall(0.7, 1.5), s: zufall(18, 28), typ: Math.floor(Math.random() * 4), r: zufall(-0.4, 0.4), vr: zufall(-0.01, 0.01), vx: 0 }
+        case 'funkeln': return { x, y: zufall(0, h), leben: 0, dauer: zufall(60, 140), s: zufall(5, 12) }
+        case 'heu': return { x, y: zufall(-h, 0), v: zufall(0.4, 1), l: zufall(18, 42), r: zufall(0, Math.PI), vr: zufall(-0.01, 0.01), vx: 0, f: ['#d9b24c', '#c99a35', '#e8c868'][Math.floor(Math.random() * 3)] }
+        case 'kasse': return { x, y: zufall(-h, 0), v: zufall(0.8, 1.8), muenze: Math.random() < 0.65, r: zufall(-0.5, 0.5), vr: zufall(-0.02, 0.02), vx: 0, preis: ['0,99', '1,49', '2,99', '-50%', '4,20', '0,79'][Math.floor(Math.random() * 6)], phase: zufall(0, 6) }
+        case 'weltraum': return { x: zufall(0, b), y: zufall(0, h), z: zufall(0.2, 1) }
+        case 'formen': { const oben = Math.random() < 0.5; return { x: zufall(-b, 0), y: oben ? h * 0.07 : h * 0.93, v: 1.1, form: Math.floor(Math.random() * 4), f: ['#e8574a', '#4ab0e8', '#5bd16a', '#f2c94c', '#a46be8'][Math.floor(Math.random() * 5)], s: 18, vy: 0, dy: 0 } }
+        case 'traenen': return { x, y: zufall(-h, 0), v: zufall(2, 4), s: zufall(6, 10), vx: 0, ring: 0 }
+        default: return null
+      }
+    }
+
+    function anzahl(a) {
+      return { matrix: 34, pixel: 50, bloecke: 22, funkeln: 30, heu: 40, kasse: 26, weltraum: 160, formen: 26, traenen: 34 }[a] ?? 0
+    }
+
+    function starten(a, deckkraft, groesseFaktor, menge) {
+      art = a; g = groesseFaktor; teile = []
+      cv.style.opacity = a ? String(deckkraft) : '0'
+      if (!a) return
+      const n = Math.round(anzahl(a) * (MENGE[menge] ?? 1))
+      for (let i = 0; i < n; i++) { const p = neu(a); if (p) teile.push(p) }
+      if (a === 'formen') teile.forEach((p, i) => { p.x = (i % 13) * (breite() / 12) + zufall(-20, 20) })
+    }
+
+    function schubs(p) {
+      if (performance.now() - maus.zeit > 1200 || p.x === undefined) return
+      const d = Math.hypot(p.x - maus.x, p.y - maus.y)
+      if (d < 60) { const k = (1 - d / 60) * 2.2; p.vx = (p.vx || 0) + Math.sign(p.x - maus.x || 1) * k; if (p.vr !== undefined) p.vr += 0.02 * Math.sign(p.x - maus.x || 1) }
+    }
+
+    function stern(x, y, s, f) {
+      cx.fillStyle = f; cx.beginPath()
+      cx.moveTo(x, y - s); cx.quadraticCurveTo(x, y, x + s, y); cx.quadraticCurveTo(x, y, x, y + s); cx.quadraticCurveTo(x, y, x - s, y); cx.quadraticCurveTo(x, y, x, y - s); cx.fill()
+    }
+
+    function block(p) {
+      const s = p.s * g, farben = [['#6ab04c', '#8a5a34'], ['#8a8f96', '#6e737a'], ['#8a5a34', '#74492a'], ['#b5864a', '#8c6434']][p.typ]
+      cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r)
+      cx.fillStyle = farben[1]; cx.fillRect(-s / 2, -s / 2, s, s)
+      cx.fillStyle = farben[0]; cx.fillRect(-s / 2, -s / 2, s, p.typ === 0 ? s * 0.3 : s)
+      cx.fillStyle = 'rgba(0,0,0,.18)'
+      for (let i = 0; i < 4; i++) cx.fillRect(-s / 2 + ((i * 7) % s), -s / 2 + ((i * 11) % s), s / 6, s / 6)
+      cx.strokeStyle = 'rgba(0,0,0,.35)'; cx.lineWidth = 1.5; cx.strokeRect(-s / 2, -s / 2, s, s)
+      cx.restore()
+    }
+
+    function form(p) {
+      const s = p.s * g
+      cx.save(); cx.translate(p.x, p.y + p.dy); cx.fillStyle = p.f; cx.strokeStyle = 'rgba(0,0,0,.4)'; cx.lineWidth = 1.5; cx.beginPath()
+      if (p.form === 0) cx.arc(0, 0, s / 2, 0, Math.PI * 2)
+      else if (p.form === 1) cx.rect(-s / 2, -s / 2, s, s)
+      else if (p.form === 2) { for (let i = 0; i < 10; i++) { const r = i % 2 ? s / 4.5 : s / 2, w = (i / 10) * Math.PI * 2 - Math.PI / 2; cx.lineTo(Math.cos(w) * r, Math.sin(w) * r) } cx.closePath() }
+      else { cx.moveTo(0, 0); cx.arc(0, 0, s / 2, Math.PI, Math.PI * 2); cx.closePath(); cx.rect(-s / 2, 0, s / 2, s / 2) }
+      cx.fill(); cx.stroke(); cx.restore()
+    }
+
+    function bild(jetzt) {
+      const b = breite(), h = hoehe()
+      cx.clearRect(0, 0, b, h)
+      if (!art) return
+      if (art === 'glitch') {
+        if (jetzt > naechstes) { burst = jetzt + 170; naechstes = jetzt + zufall(2500, 6500) }
+        if (jetzt < burst) {
+          for (let i = 0; i < 6; i++) {
+            const y = zufall(0, h), hh = zufall(3, 26), x = zufall(-40, b * 0.5)
+            cx.fillStyle = i % 2 ? 'rgba(255,0,90,.22)' : 'rgba(0,240,255,.22)'
+            cx.fillRect(x, y, zufall(b * 0.3, b), hh)
+          }
+          for (let i = 0; i < 18; i++) { cx.fillStyle = `rgba(255,255,255,${zufall(0.05, 0.3)})`; cx.fillRect(zufall(0, b), zufall(0, h), zufall(4, 24), zufall(2, 8)) }
+        }
+        return
+      }
+      if (art === 'raster') {
+        cx.strokeStyle = 'rgba(80,200,255,.13)'; cx.lineWidth = 1
+        for (let x = 0; x < b; x += 40) { if (x > b * 0.22 && x < b * 0.78) continue; cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, h); cx.stroke() }
+        for (let y = 0; y < h; y += 40) { cx.beginPath(); cx.moveTo(0, y); cx.lineTo(b * 0.22, y); cx.moveTo(b * 0.78, y); cx.lineTo(b, y); cx.stroke() }
+        if (scan < 0 && jetzt > naechstes) { scan = 0; naechstes = jetzt + zufall(6000, 11000) }
+        if (scan >= 0) { cx.fillStyle = 'rgba(80,200,255,.10)'; cx.fillRect(0, scan, b, 3); cx.fillStyle = 'rgba(80,200,255,.04)'; cx.fillRect(0, scan - 30, b, 30); scan += 6; if (scan > h) scan = -1 }
+        return
+      }
+      for (const p of teile) {
+        schubs(p)
+        switch (art) {
+          case 'matrix': {
+            p.y += p.v
+            if (p.y - 16 * 18 > h) Object.assign(p, neu('matrix'), { y: zufall(-200, 0) })
+            cx.font = `${14 * g}px monospace`
+            for (let i = 0; i < p.z.length; i++) {
+              const a = i === 0 ? 0.9 : 0.55 * (1 - i / p.z.length)
+              cx.fillStyle = i === 0 ? `rgba(200,255,210,${a})` : `rgba(60,255,120,${a})`
+              cx.fillText(p.z[i], p.x, p.y - i * 18 * g)
+            }
+            if (Math.random() < 0.03) p.z[Math.floor(Math.random() * p.z.length)] = ZEICHEN[Math.floor(Math.random() * ZEICHEN.length)]
+            break
+          }
+          case 'pixel':
+            p.y += p.v; p.x += p.vx; p.vx *= 0.92
+            if (p.y > h + 20) Object.assign(p, neu('pixel'), { y: -20 })
+            cx.fillStyle = p.f; cx.globalAlpha = 0.85; cx.fillRect(Math.round(p.x / 4) * 4, Math.round(p.y / 4) * 4, p.s * g, p.s * g); cx.globalAlpha = 1
+            break
+          case 'bloecke':
+            p.y += p.v; p.x += p.vx; p.vx *= 0.92; p.r += p.vr
+            if (p.y > h + 40) Object.assign(p, neu('bloecke'), { y: -40 })
+            block(p)
+            break
+          case 'funkeln': {
+            p.leben++
+            const k = Math.sin((p.leben / p.dauer) * Math.PI)
+            stern(p.x, p.y, p.s * g * k, `rgba(255,240,200,${0.8 * k})`)
+            if (p.leben > p.dauer) Object.assign(p, neu('funkeln'))
+            break
+          }
+          case 'heu':
+            p.y += p.v; p.x += p.vx + Math.sin(jetzt / 900 + p.y / 80) * 0.3; p.vx *= 0.92; p.r += p.vr
+            if (p.y > h + 40) Object.assign(p, neu('heu'), { y: -40 })
+            cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r); cx.strokeStyle = p.f; cx.lineWidth = 1.6 * g; cx.globalAlpha = 0.75
+            cx.beginPath(); cx.moveTo(-p.l * g / 2, 0); cx.quadraticCurveTo(0, 2, p.l * g / 2, 0); cx.stroke(); cx.restore(); cx.globalAlpha = 1
+            break
+          case 'kasse':
+            p.y += p.v; p.x += p.vx; p.vx *= 0.92; p.r += p.vr; p.phase += 0.05
+            if (p.y > h + 40) Object.assign(p, neu('kasse'), { y: -40 })
+            cx.save(); cx.translate(p.x, p.y); cx.rotate(p.r)
+            if (p.muenze) {
+              const s = 11 * g, flach = Math.abs(Math.cos(p.phase))
+              cx.scale(Math.max(0.15, flach), 1); cx.fillStyle = '#e8b830'; cx.beginPath(); cx.arc(0, 0, s, 0, Math.PI * 2); cx.fill()
+              cx.strokeStyle = '#b8861a'; cx.lineWidth = 2; cx.stroke(); cx.fillStyle = '#f6d468'; cx.beginPath(); cx.arc(-s * 0.25, -s * 0.25, s * 0.35, 0, Math.PI * 2); cx.fill()
+            } else {
+              const w = 44 * g, hh = 22 * g
+              cx.fillStyle = '#fff7d6'; cx.strokeStyle = '#d23a2a'; cx.lineWidth = 1.5
+              cx.beginPath(); cx.roundRect(-w / 2, -hh / 2, w, hh, 4); cx.fill(); cx.stroke()
+              cx.fillStyle = '#d23a2a'; cx.font = `bold ${11 * g}px sans-serif`; cx.textAlign = 'center'; cx.textBaseline = 'middle'; cx.fillText(p.preis, 2, 1)
+              cx.fillStyle = '#d23a2a'; cx.beginPath(); cx.arc(-w / 2 + 6, 0, 2.2, 0, Math.PI * 2); cx.fill()
+            }
+            cx.restore()
+            break
+          case 'weltraum':
+            p.x -= 0.4 + p.z * 2.2
+            if (p.x < -4) { p.x = b + 4; p.y = zufall(0, h) }
+            cx.fillStyle = `rgba(230,240,255,${0.25 + p.z * 0.6})`; cx.fillRect(p.x, p.y, 1 + p.z * 2 * g, 1 + p.z * 2 * g)
+            break
+          case 'formen':
+            p.x += p.v; p.dy *= 0.9; p.dy += (performance.now() - maus.zeit < 1200 && Math.hypot(p.x - maus.x, p.y - maus.y) < 50) ? -2 : 0
+            if (p.x > b + 30) { p.x = -30; p.form = Math.floor(Math.random() * 4) }
+            form(p)
+            break
+          case 'traenen':
+            p.y += p.v; p.x += p.vx; p.vx *= 0.92
+            if (p.y > h - 4) { p.ring = 1; p.rx = p.x; Object.assign(p, neu('traenen'), { y: -20, ring: 1, rx: p.x }) }
+            cx.save(); cx.translate(p.x, p.y); cx.fillStyle = 'rgba(120,190,255,.75)'; cx.strokeStyle = 'rgba(40,90,160,.6)'; cx.lineWidth = 1
+            const s = p.s * g; cx.beginPath(); cx.moveTo(0, -s * 1.4); cx.quadraticCurveTo(s, 0, 0, s); cx.quadraticCurveTo(-s, 0, 0, -s * 1.4); cx.fill(); cx.stroke(); cx.restore()
+            if (p.ring > 0 && p.ring < 24) { cx.strokeStyle = `rgba(120,190,255,${0.5 * (1 - p.ring / 24)})`; cx.beginPath(); cx.ellipse(p.rx, h - 6, p.ring * 1.6, p.ring * 0.4, 0, 0, Math.PI * 2); cx.stroke(); p.ring++ }
+            break
+        }
+      }
+      if (art === 'heu' && Math.random() < 0.012) teile.push({ glanz: 30, gx: randX(), gy: zufall(0, h) })
+      if (art === 'weltraum') {
+        if (jetzt > naechstes) { burst = 0; naechstes = jetzt + zufall(7000, 15000); teile.push({ komet: true, kx: b + 50, ky: zufall(0, h * 0.4) }) }
+      }
+      teile = teile.filter(p => {
+        if (p.glanz !== undefined) { const k = Math.sin((p.glanz / 30) * Math.PI); stern(p.gx, p.gy, 10 * g * (1 - k + 0.2), `rgba(255,236,170,${0.9 * (1 - Math.abs(k - 0.5))})`); return --p.glanz > 0 }
+        if (p.komet) { cx.strokeStyle = 'rgba(200,230,255,.7)'; cx.lineWidth = 2; cx.beginPath(); cx.moveTo(p.kx, p.ky); cx.lineTo(p.kx + 90, p.ky - 30); cx.stroke(); p.kx -= 14; p.ky += 4.6; return p.kx > -120 }
+        return true
+      })
+    }
+
+    function schleife(t) { bild(t); requestAnimationFrame(schleife) }
+    requestAnimationFrame(schleife)
+    return { starten }
+  })()
+</script>
 <script>
   const box = document.getElementById('szene')
   const box2 = document.getElementById('szene2')
@@ -40,12 +237,15 @@
   let teile = []
   let svg = null
   let opt = { wind: true, sammeln: true }
-  let maus = { x: -999, y: -999, vx: 0, vy: 0, zeit: 0 }
   let gefangen = null
   let boe = { kraft: 0, rest: 0, naechste: performance.now() + 20000 }
   let frame = 0
 
-  window.snake.onSzene(({ svg: quelle, staerke, groesse, menge, wind, sammeln }) => {
+  window.snake.onSzene(({ svg: quelle, staerke, groesse, menge, wind, sammeln, effekt }) => {
+    const e = effekt || 'theme'
+    const mitSzene = e === 'theme' || e.startsWith('theme-')
+    for (const b of [box, box2, boden]) b.style.display = mitSzene ? '' : 'none'
+    FX.starten(mitSzene || e === 'aus' ? null : e, DECKKRAFT[staerke] ?? 0.75, GROESSE[groesse] ?? 1, menge)
     opt = { wind: wind !== false, sammeln: sammeln !== false }
     document.documentElement.style.setProperty('--g', String(GROESSE[groesse] ?? 1))
     box.innerHTML = quelle

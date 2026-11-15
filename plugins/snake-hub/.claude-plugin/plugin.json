@@ -1,6 +1,6 @@
 {
   "name": "snake-hub",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "description": "Schaltzentrale: 16 animierte Themes, Fokus-Timer, Notizen, Tagesziele, Erfolge, Geräusche, 19 Mods und 8 Skills",
   "license": "MIT",
   "types": "./types/index.d.ts"

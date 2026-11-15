@@ -10,7 +10,7 @@ const { SCENES } = require('./scenes.js')
 
 const DIR = path.join(os.homedir(), '.snake-hub')
 const FILE = path.join(DIR, 'desktop.json')
-const DEFAULTS = { an: true, theme: 'herbst', modus: 'dunkel', staerke: 'normal', groesse: 'mittel', menge: 'normal', wind: true, sammeln: true, autopause: true }
+const DEFAULTS = { an: true, theme: 'herbst', modus: 'dunkel', staerke: 'normal', groesse: 'mittel', menge: 'normal', wind: true, sammeln: true, autopause: true, kontext: true, regeln: {} }
 const NAMEN = {
   herbst: '🍂 Herbstlaub', herbstnacht: '🍁 Herbstnacht', sakura: '🌸 Sakura', mitternacht: '🌙 Mitternacht',
   ozean: '🌊 Ozean', wald: '🌲 Wald', schnee: '❄️ Schnee', regen: '🌧️ Regen', lagerfeuer: '🔥 Lagerfeuer', polarlicht: '🌌 Polarlicht',
@@ -27,8 +27,10 @@ let updateStatus = ''
 let pausiert = false
 let waechter = null
 
-// ---------- Pause bei Vollbild-Spielen ----------
-// Ein kleines PowerShell-Skript prüft alle 1,5 s, ob das Fenster im Vordergrund den ganzen Bildschirm füllt.
+// ---------- Vordergrund-Wächter: Vollbild-Pause und passende Animation zur App ----------
+// Ein kleines PowerShell-Skript schaut alle 1,5 s nach dem Fenster im Vordergrund und meldet
+// nur Änderungen: Vollbild ja/nein, Programmname, Programmpfad und Fenstertitel.
+// Es macht keine Screenshots und liest keine Bildschirminhalte.
 const WAECHTER = `
 Add-Type @"
 using System; using System.Runtime.InteropServices; using System.Text;
@@ -36,33 +38,115 @@ public class W {
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out R r);
   [DllImport("user32.dll")] public static extern int GetClassName(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint p);
   [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr h, uint f);
   [DllImport("user32.dll")] public static extern bool GetMonitorInfo(IntPtr m, ref MI i);
   public struct R { public int L, T, Ri, B; }
   [StructLayout(LayoutKind.Sequential)] public struct MI { public int cb; public R mon; public R work; public uint flags; }
 }
 "@
+$tab = [char]9
 $last = ''
 while ($true) {
   $h = [W]::GetForegroundWindow(); $r = New-Object W+R; [void][W]::GetWindowRect($h, [ref]$r)
   $sb = New-Object System.Text.StringBuilder 256; [void][W]::GetClassName($h, $sb, 256); $c = $sb.ToString()
+  $tb = New-Object System.Text.StringBuilder 512; [void][W]::GetWindowText($h, $tb, 512); $titel = $tb.ToString() -replace '[\t\r\n]', ' '
+  $procId = 0; [void][W]::GetWindowThreadProcessId($h, [ref]$procId)
+  $pr = Get-Process -Id $procId -ErrorAction SilentlyContinue
+  $name = if ($pr) { $pr.ProcessName } else { '' }
+  $pfad = ''; try { if ($pr -and $pr.Path) { $pfad = $pr.Path } } catch { }
   $m = [W]::MonitorFromWindow($h, 2); $mi = New-Object W+MI; $mi.cb = [Runtime.InteropServices.Marshal]::SizeOf($mi); [void][W]::GetMonitorInfo($m, [ref]$mi)
   $fs = ($c -ne 'Progman' -and $c -ne 'WorkerW' -and $c -ne 'Shell_TrayWnd' -and $r.L -le $mi.mon.L -and $r.T -le $mi.mon.T -and $r.Ri -ge $mi.mon.Ri -and $r.B -ge $mi.mon.B)
-  $v = if ($fs) { '1' } else { '0' }
+  $f = if ($fs) { '1' } else { '0' }
+  $v = $f + $tab + $name + $tab + $pfad + $tab + $c + $tab + $titel
   if ($v -ne $last) { [Console]::Out.WriteLine($v); [Console]::Out.Flush(); $last = $v }
   Start-Sleep -Milliseconds 1500
 }
 `
 
+// Deine Spiele mit eigenem Effekt: erkannt an Fenstertitel oder Ordner.
+const SPIELE = [
+  { id: 'g-leafitalone', name: '🍂 Leaf it Alone', muster: /leaf it alone/, effekt: 'theme-herbst' },
+  { id: 'g-findtheneedle', name: '🪡 Find The Needle', muster: /find the needle/, effekt: 'heu' },
+  { id: 'g-supermarket', name: '🛒 Supermarket Together', muster: /supermarket together/, effekt: 'kasse' },
+  { id: 'g-amongus', name: '🚀 Among Us', muster: /among us/, effekt: 'weltraum' },
+  { id: 'g-shapez', name: '🔷 shapez / shapez 2', muster: /shapez/, effekt: 'formen' },
+  { id: 'g-isaac', name: '💧 The Binding of Isaac', muster: /binding of isaac|isaac-ng/, effekt: 'traenen' },
+]
+
+// App-Arten und was standardmäßig dazu läuft. "theme" heißt: das normale Theme (Blätter usw.).
+const KATEGORIEN = {
+  code: '💻 Programmieren', minecraft: '⛏️ Minecraft', spiel: '🎮 Spiele', video: '📺 Video',
+  browser: '🌐 Browser', claude: '🐍 Claude', kreativ: '🛠️ 3D und Design', desktop: '🖼️ Desktop', sonst: '📦 Sonstiges',
+  ...Object.fromEntries(SPIELE.map(g => [g.id, g.name])),
+}
+const EFFEKTE = {
+  theme: '🍂 Theme', matrix: '💚 Matrix-Code', glitch: '📺 Glitch', pixel: '🟪 Pixel', bloecke: '🟫 Blöcke',
+  raster: '📐 Blueprint-Raster', funkeln: '✨ Funkeln', heu: '🪡 Heu und Glitzern', kasse: '🪙 Münzen und Preisschilder',
+  weltraum: '🚀 Weltraum', formen: '🔷 Formen-Fließband', traenen: '💧 Tropfen', 'theme-herbst': '🍂 Herbstblätter', aus: '⭕ Nichts',
+}
+const REGELN_STANDARD = {
+  code: 'matrix', minecraft: 'bloecke', spiel: 'pixel', video: 'aus', browser: 'theme',
+  claude: 'theme', kreativ: 'raster', desktop: 'theme', sonst: 'theme',
+  ...Object.fromEntries(SPIELE.map(g => [g.id, g.effekt])),
+}
+
+function kategorie(name, pfad, klasse, titel) {
+  const n = name.toLowerCase(), p = pfad.toLowerCase(), t = titel.toLowerCase()
+  const spiel = SPIELE.find(g => g.muster.test(t) || g.muster.test(p.replace(/\\/g, ' ')) || g.muster.test(n))
+  if (spiel) return spiel.id
+  if (klasse === 'Progman' || klasse === 'WorkerW' || klasse === 'Shell_TrayWnd' || n === 'explorer') return 'desktop'
+  if (/minecraft/.test(t) || /minecraft|modrinth|liquidlauncher|lunarclient|prismlauncher|curseforge/.test(n)) return 'minecraft'
+  if (/^(code|cursor|devenv|studio64|idea64|pycharm64|rider64|webstorm64|unrealeditor|windowsterminal|wt|powershell|pwsh|cmd|godot.*)$/.test(n)) return 'code'
+  if (/creality|fusion360|blender|photoshop|gimp|krita|figma|cura|prusaslicer/.test(n) || /autodesk fusion/.test(t)) return 'kreativ'
+  if (n === 'claude') return 'claude'
+  if (/^(firefox|chrome|msedge|opera|brave|vivaldi)$/.test(n)) return /youtube|netflix|twitch|prime video|disney\+/.test(t) ? 'video' : 'browser'
+  if (/^(vlc|mpc-hc64|mpv|potplayer.*)$/.test(n)) return 'video'
+  if (/\\steamapps\\|\\epic games\\|\\riot games\\|\\gog galaxy\\games/.test(p)) return 'spiel'
+  return 'sonst'
+}
+
+let jetzt = { app: '', kategorie: 'desktop', titel: '' }
+
+function effektJetzt() {
+  if (!settings.kontext) return 'theme'
+  const regeln = { ...REGELN_STANDARD, ...(settings.regeln || {}) }
+  return regeln[jetzt.kategorie] || 'theme'
+}
+
+function statusSchreiben() {
+  try {
+    fs.mkdirSync(DIR, { recursive: true })
+    fs.writeFileSync(path.join(DIR, 'status.json'), JSON.stringify({ ...jetzt, effekt: effektJetzt(), pausiert }, null, 2))
+  } catch {
+    // nicht schlimm
+  }
+}
+
+let puffer = ''
 function waechterSetzen() {
-  const soll = process.platform === 'win32' && settings.autopause && settings.an
+  const soll = process.platform === 'win32' && settings.an && (settings.autopause || settings.kontext)
   if (soll && waechter === null) {
     const kodiert = Buffer.from(WAECHTER, 'utf16le').toString('base64')
     waechter = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', kodiert], { windowsHide: true })
     waechter.stdout.on('data', d => {
-      const v = String(d).trim().split(/\s+/).pop()
-      const neu = v === '1'
-      if (neu !== pausiert) { pausiert = neu; anwenden() }
+      puffer += String(d)
+      const zeilen = puffer.split(/\r?\n/)
+      puffer = zeilen.pop() || ''
+      const zeile = zeilen.filter(z => z.includes('\t')).pop()
+      if (zeile === undefined) return
+      const [vs, name = '', pfad = '', klasse = '', titel = ''] = zeile.split('\t')
+      const vorher = { pausiert, effekt: effektJetzt() }
+      // Unser eigenes Fenster oder das Infobereich-Menü zählt nicht als App-Wechsel.
+      if (name.toLowerCase() !== 'snake-desktop') {
+        jetzt = { app: name, kategorie: kategorie(name, pfad, klasse, titel), titel: titel.slice(0, 80) }
+      }
+      // Spiele mit eigenem Effekt pausieren nicht, alles andere im Vollbild schon.
+      const eigenerEffekt = jetzt.kategorie.startsWith('g-') && effektJetzt() !== 'aus'
+      pausiert = settings.autopause && vs === '1' && !eigenerEffekt
+      statusSchreiben()
+      if (vorher.pausiert !== pausiert || vorher.effekt !== effektJetzt()) anwenden()
     })
     waechter.on('exit', () => { waechter = null })
   } else if (!soll && waechter !== null) {
@@ -142,6 +226,8 @@ function schreiben(patch) {
 }
 
 function szene() {
+  const e = effektJetzt()
+  if (e.startsWith('theme-')) return SCENES[e.slice(6)] || SCENES.herbst
   return SCENES[settings.theme] || SCENES.herbst
 }
 
@@ -154,7 +240,7 @@ function anwenden() {
       w.hide()
       continue
     }
-    w.webContents.send('szene', { svg: szene(), staerke: settings.staerke, groesse: settings.groesse, menge: settings.menge, wind: settings.wind, sammeln: settings.sammeln })
+    w.webContents.send('szene', { svg: szene(), staerke: settings.staerke, groesse: settings.groesse, menge: settings.menge, wind: settings.wind, sammeln: settings.sammeln, effekt: effektJetzt() })
     w.showInactive()
   }
   menue()
@@ -197,6 +283,19 @@ function menue() {
     { label: 'Menge', submenu: Object.entries(MENGEN).map(([id, name]) => ({ label: name, type: 'radio', checked: settings.menge === id, click: () => schreiben({ menge: id }) })) },
     { label: 'Windböen', type: 'checkbox', checked: settings.wind, click: () => schreiben({ wind: !settings.wind }) },
     { label: 'Blätter sammeln sich unten', type: 'checkbox', checked: settings.sammeln, click: () => schreiben({ sammeln: !settings.sammeln }) },
+    { label: 'Passend zur App', submenu: [
+      { label: 'An', type: 'checkbox', checked: settings.kontext, click: () => schreiben({ kontext: !settings.kontext }) },
+      { label: jetzt.app ? `Gerade: ${jetzt.app} (${KATEGORIEN[jetzt.kategorie]})` : 'Gerade: Desktop', enabled: false },
+      { type: 'separator' },
+      ...Object.entries(KATEGORIEN).map(([kat, name]) => ({
+        label: name,
+        submenu: Object.entries(EFFEKTE).map(([eff, effName]) => ({
+          label: effName, type: 'radio',
+          checked: ({ ...REGELN_STANDARD, ...(settings.regeln || {}) })[kat] === eff,
+          click: () => schreiben({ regeln: { ...(settings.regeln || {}), [kat]: eff } }),
+        })),
+      })),
+    ] },
     { label: 'Bei Vollbild-Spielen pausieren', type: 'checkbox', checked: settings.autopause, click: () => schreiben({ autopause: !settings.autopause }) },
     { label: 'Hell / Dunkel', submenu: [['dunkel', 'Dunkel'], ['hell', 'Hell'], ['auto', 'Wie Windows']].map(([id, name]) => ({ label: name, type: 'radio', checked: settings.modus === id, click: () => schreiben({ modus: id }) })) },
     { type: 'separator' },

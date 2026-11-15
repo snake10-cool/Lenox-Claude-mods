@@ -23,6 +23,7 @@ Desktop-App: Plus neben dem Eingabefeld → Plugins → Marketplace hinzufügen 
 Ein kleines Programm, das die Hintergründe des Snake-Hub über den **ganzen Bildschirm** fallen lässt, auch über die Taskleiste. Alle Klicks gehen durch, es stört also nie.
 
 - **Herunterladen:** Releases → „Snake-Desktop (neueste Version)“ → `Snake-Desktop-Setup.exe` (installieren) oder `Snake-Desktop-Portable.exe` (ohne Installation).
+- **Passend zur App:** Snake-Desktop erkennt das Programm im Vordergrund (nur Name und Fenstertitel, keine Screenshots) und spielt dazu einen Effekt: Matrix-Code beim Programmieren, Minecraft-Blöcke bei Minecraft, Blueprint-Raster bei 3D-Programmen, nichts bei Videos. Eigene Effekte für Leaf it Alone, Find The Needle, Supermarket Together, Among Us, shapez und The Binding of Isaac. Änderbar pro App-Art im Hub-Panel oder per Rechtsklick aufs Blatt-Symbol.
 - **Extras:** Größe und Menge der Blätter, Windböen, Blätter sammeln sich am unteren Rand, automatische Pause bei Vollbild-Spielen.
 - **Steuern:** über das Blatt-Symbol im Infobereich der Taskleiste (Rechtsklick: Theme, Stärke, Hell/Dunkel, mit Windows starten, Beenden; Linksklick: an/aus) oder direkt im Snake-Hub-Panel in Claude. Beide teilen sich die Datei `%USERPROFILE%\.snake-hub\desktop.json`.
 - **Updates:** Ab Version 0.4 prüft Snake-Desktop beim Start und alle 4 Stunden selbst auf Updates und installiert sie still. Von Hand: Rechtsklick aufs Blatt-Symbol → „Nach Updates suchen“.
