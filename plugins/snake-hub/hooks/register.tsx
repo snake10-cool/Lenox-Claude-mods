@@ -73,7 +73,7 @@ const MENGEN = [{ id: 'wenig', name: 'Wenig' }, { id: 'normal', name: 'Normal' }
 const APP_EFFEKTE: { id: string; name: string }[] = [
   { id: 'theme', name: '🍂 Theme' }, { id: 'matrix', name: '💚 Matrix' }, { id: 'glitch', name: '📺 Glitch' },
   { id: 'pixel', name: '🟪 Pixel' }, { id: 'bloecke', name: '🟫 Blöcke' }, { id: 'raster', name: '📐 Raster' },
-  { id: 'funkeln', name: '✨ Funkeln' }, { id: 'heu', name: '🪡 Heu' }, { id: 'kasse', name: '🪙 Münzen' },
+  { id: 'funkeln', name: '✨ Funkeln' }, { id: 'heu', name: '🧵 Heu' }, { id: 'kasse', name: '🪙 Münzen' },
   { id: 'weltraum', name: '🚀 Weltraum' }, { id: 'formen', name: '🔷 Formen' }, { id: 'traenen', name: '💧 Tropfen' },
   { id: 'aus', name: '⭕ Nichts' },
 ]

@@ -74,7 +74,7 @@ while ($true) {
 // Deine Spiele mit eigenem Effekt: erkannt an Fenstertitel oder Ordner.
 const SPIELE = [
   { id: 'g-leafitalone', name: '🍂 Leaf it Alone', muster: /leaf it alone/, effekt: 'theme-herbst' },
-  { id: 'g-findtheneedle', name: '🪡 Find The Needle', muster: /find the needle/, effekt: 'heu' },
+  { id: 'g-findtheneedle', name: '🧵 Find The Needle', muster: /find the needle/, effekt: 'heu' },
   { id: 'g-supermarket', name: '🛒 Supermarket Together', muster: /supermarket together/, effekt: 'kasse' },
   { id: 'g-amongus', name: '🚀 Among Us', muster: /among us/, effekt: 'weltraum' },
   { id: 'g-shapez', name: '🔷 shapez / shapez 2', muster: /shapez/, effekt: 'formen' },
@@ -89,7 +89,7 @@ const KATEGORIEN = {
 }
 const EFFEKTE = {
   theme: '🍂 Theme', matrix: '💚 Matrix-Code', glitch: '📺 Glitch', pixel: '🟪 Pixel', bloecke: '🟫 Blöcke',
-  raster: '📐 Blueprint-Raster', funkeln: '✨ Funkeln', heu: '🪡 Heu und Glitzern', kasse: '🪙 Münzen und Preisschilder',
+  raster: '📐 Blueprint-Raster', funkeln: '✨ Funkeln', heu: '🧵 Heu und Glitzern', kasse: '🪙 Münzen und Preisschilder',
   weltraum: '🚀 Weltraum', formen: '🔷 Formen-Fließband', traenen: '💧 Tropfen', 'theme-herbst': '🍂 Herbstblätter', aus: '⭕ Nichts',
 }
 const REGELN_STANDARD = {
@@ -163,8 +163,10 @@ function waechterSetzen() {
       if (zeile === undefined) return
       const [vs, name = '', pfad = '', klasse = '', titel = ''] = zeile.split('\t')
       const vorher = { pausiert, effekt: effektJetzt() }
-      // Unser eigenes Fenster oder das Infobereich-Menü zählt nicht als App-Wechsel.
-      if (name.toLowerCase() !== 'snake-desktop') {
+      // Unser eigenes Fenster, die Taskleiste und Menüs zählen nicht als App-Wechsel,
+      // sonst würde beim Öffnen des Blatt-Menüs immer "Desktop" erkannt.
+      const nebensache = /^(Shell_TrayWnd|Shell_SecondaryTrayWnd|NotifyIconOverflowWindow|TopLevelWindowForOverflowXamlIsland|#32768|Xaml_WindowedPopupClass|Windows\.UI\.Core\.CoreWindow)$/.test(klasse)
+      if (name.toLowerCase() !== 'snake-desktop' && name.toLowerCase() !== 'snake desktop' && !nebensache) {
         jetzt = { app: name, kategorie: kategorie(name, pfad, klasse, titel), titel: titel.slice(0, 80) }
       }
       // Spiele mit eigenem Effekt pausieren nicht, alles andere im Vollbild schon.
