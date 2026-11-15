@@ -46,14 +46,17 @@ public class W {
   [StructLayout(LayoutKind.Sequential)] public struct MI { public int cb; public R mon; public R work; public uint flags; }
 }
 "@
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $tab = [char]9
 $last = ''
+[Console]::Out.WriteLine('BEREIT'); [Console]::Out.Flush()
 while ($true) {
+ try {
   $h = [W]::GetForegroundWindow(); $r = New-Object W+R; [void][W]::GetWindowRect($h, [ref]$r)
   $sb = New-Object System.Text.StringBuilder 256; [void][W]::GetClassName($h, $sb, 256); $c = $sb.ToString()
   $tb = New-Object System.Text.StringBuilder 512; [void][W]::GetWindowText($h, $tb, 512); $titel = $tb.ToString() -replace '[\t\r\n]', ' '
-  $procId = 0; [void][W]::GetWindowThreadProcessId($h, [ref]$procId)
-  $pr = Get-Process -Id $procId -ErrorAction SilentlyContinue
+  [uint32]$procId = 0; [void][W]::GetWindowThreadProcessId($h, [ref]$procId)
+  $pr = $null; if ($procId -gt 0) { $pr = Get-Process -Id ([int]$procId) -ErrorAction SilentlyContinue }
   $name = if ($pr) { $pr.ProcessName } else { '' }
   $pfad = ''; try { if ($pr -and $pr.Path) { $pfad = $pr.Path } } catch { }
   $m = [W]::MonitorFromWindow($h, 2); $mi = New-Object W+MI; $mi.cb = [Runtime.InteropServices.Marshal]::SizeOf($mi); [void][W]::GetMonitorInfo($m, [ref]$mi)
@@ -61,6 +64,9 @@ while ($true) {
   $f = if ($fs) { '1' } else { '0' }
   $v = $f + $tab + $name + $tab + $pfad + $tab + $c + $tab + $titel
   if ($v -ne $last) { [Console]::Out.WriteLine($v); [Console]::Out.Flush(); $last = $v }
+ } catch {
+  [Console]::Out.WriteLine('FEHLER' + $tab + $_.Exception.Message); [Console]::Out.Flush()
+ }
   Start-Sleep -Milliseconds 1500
 }
 `
@@ -125,15 +131,34 @@ function statusSchreiben() {
 }
 
 let puffer = ''
+let diagnose = 'Wächter noch nicht gestartet'
+
+function loggen(text) {
+  try {
+    fs.mkdirSync(DIR, { recursive: true })
+    const datei = path.join(DIR, 'log.txt')
+    const alt = fs.existsSync(datei) ? fs.readFileSync(datei, 'utf8').split('\n').slice(-200).join('\n') : ''
+    fs.writeFileSync(datei, `${alt}\n${new Date().toLocaleString('de-DE')} ${text}`.trim() + '\n')
+  } catch {
+    // egal
+  }
+}
 function waechterSetzen() {
   const soll = process.platform === 'win32' && settings.an && (settings.autopause || settings.kontext)
   if (soll && waechter === null) {
     const kodiert = Buffer.from(WAECHTER, 'utf16le').toString('base64')
+    diagnose = 'Wächter startet …'
     waechter = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', kodiert], { windowsHide: true })
+    waechter.stderr.on('data', d => { diagnose = 'Fehler im Wächter (siehe Log)'; loggen(`stderr: ${String(d).trim().slice(0, 400)}`); menue() })
+    waechter.on('error', err => { diagnose = `Wächter startet nicht: ${err.message}`; loggen(diagnose); menue() })
     waechter.stdout.on('data', d => {
-      puffer += String(d)
+      puffer += d.toString('utf8')
       const zeilen = puffer.split(/\r?\n/)
       puffer = zeilen.pop() || ''
+      for (const z of zeilen) {
+        if (z.startsWith('BEREIT')) { diagnose = 'Wächter läuft'; loggen('Wächter bereit'); menue() }
+        if (z.startsWith('FEHLER')) { diagnose = 'Fehler beim Erkennen (siehe Log)'; loggen(z) }
+      }
       const zeile = zeilen.filter(z => z.includes('\t')).pop()
       if (zeile === undefined) return
       const [vs, name = '', pfad = '', klasse = '', titel = ''] = zeile.split('\t')
@@ -145,10 +170,12 @@ function waechterSetzen() {
       // Spiele mit eigenem Effekt pausieren nicht, alles andere im Vollbild schon.
       const eigenerEffekt = jetzt.kategorie.startsWith('g-') && effektJetzt() !== 'aus'
       pausiert = settings.autopause && vs === '1' && !eigenerEffekt
+      diagnose = `Erkannt: ${name || '?'} → ${KATEGORIEN[jetzt.kategorie] || jetzt.kategorie} → ${EFFEKTE[effektJetzt()] || effektJetzt()}`
       statusSchreiben()
+      menue()
       if (vorher.pausiert !== pausiert || vorher.effekt !== effektJetzt()) anwenden()
     })
-    waechter.on('exit', () => { waechter = null })
+    waechter.on('exit', code => { waechter = null; diagnose = `Wächter beendet (Code ${code})`; loggen(diagnose) })
   } else if (!soll && waechter !== null) {
     waechter.kill()
     waechter = null
@@ -285,7 +312,8 @@ function menue() {
     { label: 'Blätter sammeln sich unten', type: 'checkbox', checked: settings.sammeln, click: () => schreiben({ sammeln: !settings.sammeln }) },
     { label: 'Passend zur App', submenu: [
       { label: 'An', type: 'checkbox', checked: settings.kontext, click: () => schreiben({ kontext: !settings.kontext }) },
-      { label: jetzt.app ? `Gerade: ${jetzt.app} (${KATEGORIEN[jetzt.kategorie]})` : 'Gerade: Desktop', enabled: false },
+      { label: diagnose, enabled: false },
+      { label: 'Log öffnen', click: () => require('electron').shell.openPath(path.join(DIR, 'log.txt')) },
       { type: 'separator' },
       ...Object.entries(KATEGORIEN).map(([kat, name]) => ({
         label: name,
