@@ -165,6 +165,87 @@ function polarlicht() {
   const style = s.style + `.band{mix-blend-mode:screen;filter:blur(18px);transform-box:fill-box;transform-origin:center;animation:wogen ease-in-out infinite alternate}.a1{fill:#3fd8a0;opacity:.35}.a2{fill:#2fb6d8;opacity:.28}.a3{fill:#9a6ae0;opacity:.22}@keyframes wogen{from{transform:translateX(-60px) scaleY(.85)}to{transform:translateX(60px) scaleY(1.15)}}.star{fill:#6a7d94;animation:tw ease-in-out infinite alternate}@keyframes tw{from{opacity:.15}to{opacity:.9}}@media (prefers-color-scheme: dark){.a1{opacity:.55}.a2{opacity:.45}.a3{opacity:.38}.star{fill:#e8f2ff}}`;
   return wrap("polarlicht", s.defs, style, stars + band(200, "a1", 11) + band(300, "a2", 14) + band(130, "a3", 17));
 }
+function gewitter() {
+  const r = rng(97);
+  const s = sky("gewitter", ["#c9ced8", "#aab2c0"], ["#0a0d14", "#141a24"]);
+  let drops = "";
+  for (let i = 0; i < 140; i++) {
+    const x = r() * (W + 400);
+    drops += `<line x1="${x.toFixed(0)}" y1="-40" x2="${(x - 20).toFixed(0)}" y2="0" class="drop" style="animation-duration:${(0.5 + r() * 0.4).toFixed(2)}s;animation-delay:${(-r() * 2).toFixed(2)}s"/>`;
+  }
+  const blitz = (x, d) => `<polyline class="blitz" style="animation-delay:${d}s" points="${x},0 ${x - 30},160 ${x + 10},170 ${x - 40},360 ${x + 5},370 ${x - 60},560" />`;
+  const style = s.style + `.drop{stroke:#6c7a8c;stroke-width:1.4;opacity:.5;animation:rain linear infinite}@keyframes rain{from{transform:translate(0,0)}to{transform:translate(-200px,${H + 80}px)}}.flash{fill:#ffffff;opacity:0;animation:flash 9s infinite}.flash2{animation-delay:5.5s}@keyframes flash{0%,88%,92%,96%,100%{opacity:0}89%{opacity:.35}94%{opacity:.18}}.blitz{fill:none;stroke:#fff6c8;stroke-width:4;stroke-linejoin:round;opacity:0;animation:bl 9s infinite;filter:drop-shadow(0 0 8px #fff6c8)}@keyframes bl{0%,88%,93%,100%{opacity:0}89%,91%{opacity:1}}@media (prefers-color-scheme: dark){.drop{stroke:#55657a}}`;
+  return wrap("gewitter", s.defs, style, drops + blitz(260, 0) + blitz(1380, 5.5) + `<rect width="${W}" height="${H}" class="flash"/><rect width="${W}" height="${H}" class="flash flash2"/>`);
+}
+function strand() {
+  const r = rng(101);
+  const s = sky("strand", ["#bfe6f2", "#f6dfb4"], ["#0d1630", "#2a1f3a"]);
+  const sonne = `<circle cx="1360" cy="210" r="90" class="sonne"/>`;
+  const wolke = (y, d, sc) => `<g class="wolke" style="animation-duration:${d}s;animation-delay:${(-r() * d).toFixed(1)}s"><g transform="translate(0 ${y}) scale(${sc})"><ellipse cx="0" cy="0" rx="90" ry="28" class="wk"/><ellipse cx="50" cy="-18" rx="60" ry="30" class="wk"/><ellipse cx="-45" cy="-10" rx="50" ry="24" class="wk"/></g></g>`;
+  const welle = (y, cls, dur) => `<g class="wave" style="animation-duration:${dur}s"><path class="${cls}" d="M0 ${y} ${Array.from({ length: 9 }, (_, i) => `Q ${i * 400 + 100} ${y - 18} ${i * 400 + 200} ${y} T ${i * 400 + 400} ${y}`).join(" ")} L 3600 ${H} L 0 ${H} Z"/></g>`;
+  const sand = `<path d="M0 930 C400 900 900 950 1600 915 L1600 1000 L0 1000 Z" class="sand"/>`;
+  const style = s.style + `.sonne{fill:#ffd36a;opacity:.85;animation:glow 6s ease-in-out infinite alternate}@keyframes glow{from{opacity:.7}to{opacity:.95}}.wk{fill:#ffffff;opacity:.75}.wolke{animation:zieh linear infinite}@keyframes zieh{from{transform:translateX(-300px)}to{transform:translateX(1900px)}}.wave{animation:wave linear infinite}@keyframes wave{from{transform:translateX(0)}to{transform:translateX(-800px)}}.w1{fill:#5fc3d8;opacity:.55}.w2{fill:#2f9fc0;opacity:.5}.sand{fill:#ecd29c}@media (prefers-color-scheme: dark){.sonne{fill:#f2e6c0;opacity:.7}.wk{fill:#3a3a5a;opacity:.6}.w1{fill:#1d3f5c}.w2{fill:#16304a}.sand{fill:#3a2f2a}}`;
+  return wrap("strand", s.defs, style, sonne + wolke(140, 70, 1) + wolke(260, 95, 0.7) + wolke(90, 120, 1.3) + welle(860, "w1", 16) + welle(890, "w2", 11) + sand);
+}
+function unterwasser() {
+  const r = rng(107);
+  const s = sky("unterwasser", ["#9fd6e2", "#3f8ea8"], ["#062030", "#020c14"]);
+  let strahlen = "";
+  for (let i = 0; i < 6; i++) {
+    const x = 200 + i * 260 + r() * 80;
+    strahlen += `<polygon class="strahl" style="animation-delay:${(-r() * 8).toFixed(1)}s" points="${x},-20 ${x + 60},-20 ${x + 260},${H} ${x + 120},${H}"/>`;
+  }
+  const fisch = (y, d, sc, links) => `<g class="${links ? "schwimmL" : "schwimmR"}" style="animation-duration:${d}s;animation-delay:${(-r() * d).toFixed(1)}s"><g transform="translate(0 ${y}) scale(${links ? -sc : sc} ${sc})"><path class="fisch" d="M0 0 C20 -16 50 -16 66 0 C50 16 20 16 0 0 Z M0 0 L-18 -12 L-18 12 Z"/><circle cx="52" cy="-3" r="2.5" class="auge"/></g></g>`;
+  let blasen = "";
+  for (let i = 0; i < 30; i++) {
+    const x = r() < 0.5 ? r() * 420 : W - r() * 420;
+    blasen += `<circle cx="${x.toFixed(0)}" cy="${H + 20}" r="${(2 + r() * 6).toFixed(0)}" class="bub" style="animation-duration:${(7 + r() * 9).toFixed(1)}s;animation-delay:${(-r() * 16).toFixed(1)}s"/>`;
+  }
+  let fische = "";
+  for (let i = 0; i < 7; i++) fische += fisch(200 + r() * 650, 30 + r() * 30, 0.6 + r() * 0.8, r() < 0.5);
+  const style = s.style + `.strahl{fill:#ffffff;opacity:.08;animation:schimmer 8s ease-in-out infinite alternate}@keyframes schimmer{from{opacity:.03}to{opacity:.12}}.fisch{fill:#e88a3a;opacity:.85}.auge{fill:#1a1a1a}.schwimmR{animation:sr linear infinite}@keyframes sr{from{transform:translateX(-200px)}to{transform:translateX(1800px)}}.schwimmL{animation:sl linear infinite}@keyframes sl{from{transform:translateX(1800px)}to{transform:translateX(-200px)}}.bub{fill:none;stroke:#d8f4ff;stroke-width:2;opacity:.6;animation:rise linear infinite}@keyframes rise{from{transform:translateY(0)}to{transform:translateY(-${H + 80}px)}}@media (prefers-color-scheme: dark){.fisch{fill:#c8702e;opacity:.7}.bub{stroke:#7fc8e0}.strahl{fill:#9fdcff}}`;
+  return wrap("unterwasser", s.defs, style, strahlen + fische + blasen);
+}
+function wueste() {
+  const r = rng(113);
+  const s = sky("wueste", ["#f7e2b8", "#eab676"], ["#1c1020", "#3a2018"]);
+  const duenen = `<path d="M0 820 C250 740 500 760 760 830 C1000 890 1250 760 1600 800 L1600 1000 L0 1000 Z" class="d1"/><path d="M0 900 C300 850 600 900 900 870 C1200 840 1400 900 1600 880 L1600 1000 L0 1000 Z" class="d2"/>`;
+  let sand = "";
+  for (let i = 0; i < 90; i++) {
+    sand += `<circle cx="-20" cy="${(600 + r() * 380).toFixed(0)}" r="${(1 + r() * 1.8).toFixed(1)}" class="korn" style="animation-duration:${(4 + r() * 6).toFixed(1)}s;animation-delay:${(-r() * 10).toFixed(1)}s"/>`;
+  }
+  const kaktus = (x, h) => `<g transform="translate(${x} ${H - 80})" class="kaktus"><rect x="-10" y="${-h}" width="20" height="${h}" rx="10"/><rect x="-34" y="${-h * 0.7}" width="14" height="${h * 0.35}" rx="7"/><rect x="-34" y="${-h * 0.42}" width="30" height="12" rx="6"/><rect x="20" y="${-h * 0.8}" width="14" height="${h * 0.3}" rx="7"/><rect x="4" y="${-h * 0.56}" width="30" height="12" rx="6"/></g>`;
+  const style = s.style + `.d1{fill:#e2a862}.d2{fill:#cf8c48}.kaktus{fill:#5b7d3a}.korn{fill:#f3d7a4;opacity:.7;animation:weh linear infinite}@keyframes weh{from{transform:translate(0,0)}to{transform:translate(${W + 60}px,-40px)}}@media (prefers-color-scheme: dark){.d1{fill:#4a2c1e}.d2{fill:#38201a}.kaktus{fill:#253a1e}.korn{fill:#a8805a;opacity:.5}}`;
+  return wrap("wueste", s.defs, style, duenen + kaktus(170, 170) + kaktus(1440, 140) + sand);
+}
+function halloween() {
+  const r = rng(127);
+  const s = sky("halloween", ["#e8c6a8", "#c48a6a"], ["#140a1c", "#2a1020"]);
+  const mond = `<circle cx="1360" cy="180" r="80" class="mond"/>`;
+  const fledermaus = (y, d, sc) => `<g class="flug" style="animation-duration:${d}s;animation-delay:${(-r() * d).toFixed(1)}s"><g transform="translate(0 ${y}) scale(${sc})"><g class="fluegel" style="animation-duration:${(0.25 + r() * 0.15).toFixed(2)}s"><path class="fm" d="M0 0 C-10 -14 -26 -16 -40 -6 C-30 -6 -26 0 -24 6 C-16 0 -8 2 0 8 C8 2 16 0 24 6 C26 0 30 -6 40 -6 C26 -16 10 -14 0 0 Z"/></g></g></g>`;
+  let flieger = "";
+  for (let i = 0; i < 9; i++) flieger += fledermaus(80 + r() * 420, 18 + r() * 16, 0.6 + r() * 0.7);
+  const kuerbis = (x, sc) => `<g transform="translate(${x} ${H - 40}) scale(${sc})"><ellipse rx="46" ry="36" class="kb"/><ellipse rx="22" ry="36" class="kb2"/><rect x="-5" y="-48" width="10" height="16" rx="3" class="stiel"/><path d="M-24 -6 L-12 -18 L-4 -6 Z M24 -6 L12 -18 L4 -6 Z M-22 10 L-12 18 L-4 12 L4 18 L12 12 L22 10 L12 24 L-12 24 Z" class="gesicht"/></g>`;
+  const leaf = (i) => `<path class="bit l${i % 3}" d="M0 -14 C10 -10 11 3 0 14 C-11 3 -10 -10 0 -14 Z"/>`;
+  const style = s.style + FALL_STYLE + `.mond{fill:#f3e3b0;opacity:.85}.fm{fill:#2a1a2a}.flug{animation:fliegen linear infinite}@keyframes fliegen{from{transform:translate(-120px,0)}50%{transform:translate(800px,40px)}to{transform:translate(1760px,-20px)}}.fluegel{transform-box:fill-box;transform-origin:center;animation:flatter ease-in-out infinite alternate}@keyframes flatter{from{transform:scaleY(1)}to{transform:scaleY(.35)}}.kb{fill:#e2741e}.kb2{fill:#c95e14}.stiel{fill:#5a6a2a}.gesicht{fill:#ffd36a;animation:flacker 1.4s ease-in-out infinite alternate}@keyframes flacker{from{opacity:.7}to{opacity:1}}.l0{fill:#d9622b}.l1{fill:#7a3a8a}.l2{fill:#b8461f}.bit{opacity:.85}@media (prefers-color-scheme: dark){.fm{fill:#06040a}.mond{fill:#f0d890}}`;
+  return wrap("halloween", s.defs, style, mond + flieger + kuerbis(160, 1.2) + kuerbis(270, 0.8) + kuerbis(1450, 1) + fallers(r, 26, leaf, "fall", 12, 22));
+}
+function weihnachten() {
+  const r = rng(131);
+  const s = sky("weihnachten", ["#dfe8f2", "#c6d4e6"], ["#0a1222", "#142038"]);
+  const flake = () => `<circle class="bit flake" r="${(2.5 + r() * 4).toFixed(1)}"/>`;
+  const farben = ["#e2483a", "#f2c23a", "#3fae5a", "#3a8ae2"];
+  let lichter = `<path d="M-20 40 Q 200 110 400 50 T 800 50 T 1200 50 T 1620 40" class="kabel"/>`;
+  for (let i = 0; i < 26; i++) {
+    const x = i * 64;
+    const y = 50 + Math.sin(x / 400 * Math.PI) * 30 + 12;
+    lichter += `<circle cx="${x}" cy="${y.toFixed(0)}" r="7" fill="${farben[i % 4]}" class="licht" style="animation-delay:${(-(i % 4) * 0.6).toFixed(1)}s"/>`;
+  }
+  const baum = (x, h) => `<g transform="translate(${x} ${H})"><path class="tanne" d="M0 ${-h} L${h * 0.32} ${-h * 0.5} L${h * 0.16} ${-h * 0.5} L${h * 0.4} ${-h * 0.12} L${-h * 0.4} ${-h * 0.12} L${-h * 0.16} ${-h * 0.5} L${-h * 0.32} ${-h * 0.5} Z"/><rect x="-10" y="${-h * 0.12}" width="20" height="${h * 0.12}" class="stamm"/><circle cy="${-h - 6}" r="9" class="stern"/></g>`;
+  const ground = `<path d="M0 930 C300 905 700 945 1100 920 C1300 910 1450 930 1600 920 L1600 1000 L0 1000 Z" class="snowg"/>`;
+  const style = s.style + FALL_STYLE + `.flake{fill:#ffffff;stroke:#b9c8da;stroke-width:1;opacity:.95}.snowg{fill:#ffffff;opacity:.85}.kabel{fill:none;stroke:#2a3a2a;stroke-width:2}.licht{animation:blink 2.4s ease-in-out infinite alternate;filter:drop-shadow(0 0 6px currentColor)}@keyframes blink{from{opacity:.35}to{opacity:1}}.tanne{fill:#2f6a3a}.stamm{fill:#5a3a22}.stern{fill:#f2c23a;animation:blink 1.6s ease-in-out infinite alternate}@media (prefers-color-scheme: dark){.flake{fill:#e2ecf8;stroke:none;opacity:.85}.snowg{fill:#22324a;opacity:.95}.tanne{fill:#183a22}.kabel{stroke:#0a0f0a}}`;
+  return wrap("weihnachten", s.defs, style, lichter + baum(170, 300) + baum(1450, 260) + ground + fallers(r, 60, flake, "fall", 14, 28));
+}
 const SCENES = {
   herbst: herbst(),
   sakura: sakura(),
@@ -175,7 +256,13 @@ const SCENES = {
   schnee: schnee(),
   regen: regen(),
   lagerfeuer: lagerfeuer(),
-  polarlicht: polarlicht()
+  polarlicht: polarlicht(),
+  gewitter: gewitter(),
+  strand: strand(),
+  unterwasser: unterwasser(),
+  wueste: wueste(),
+  halloween: halloween(),
+  weihnachten: weihnachten()
 };
 const SCENE_ALT = {
   herbst: "Herbstbl\xE4tter fallen \xFCber sanfte H\xFCgel",
@@ -187,5 +274,11 @@ const SCENE_ALT = {
   schnee: "Schneeflocken fallen auf eine Schneedecke",
   regen: "Regen f\xE4llt schr\xE4g, unten bilden sich Pf\xFCtzenringe",
   lagerfeuer: "Zwei Lagerfeuer flackern, Funken steigen auf",
-  polarlicht: "Gr\xFCne und violette Polarlichter wogen \xFCber einem Sternenhimmel"
+  polarlicht: "Gr\xFCne und violette Polarlichter wogen \xFCber einem Sternenhimmel",
+  gewitter: "Starkregen, Blitze zucken, der Himmel leuchtet kurz auf",
+  strand: "Sonne, ziehende Wolken und Wellen am Sandstrand",
+  unterwasser: "Lichtstrahlen im Wasser, Fische schwimmen vorbei, Blasen steigen auf",
+  wueste: "Sandd\xFCnen, Kakteen und vorbeiwehende Sandk\xF6rner",
+  halloween: "Flederm\xE4use vor dem Mond, leuchtende K\xFCrbisse, fallende Bl\xE4tter",
+  weihnachten: "Lichterkette, Tannen mit Stern und fallender Schnee"
 };

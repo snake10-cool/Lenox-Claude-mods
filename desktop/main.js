@@ -10,17 +10,67 @@ const { SCENES } = require('./scenes.js')
 
 const DIR = path.join(os.homedir(), '.snake-hub')
 const FILE = path.join(DIR, 'desktop.json')
-const DEFAULTS = { an: true, theme: 'herbst', modus: 'dunkel', staerke: 'normal' }
+const DEFAULTS = { an: true, theme: 'herbst', modus: 'dunkel', staerke: 'normal', groesse: 'mittel', menge: 'normal', wind: true, sammeln: true, autopause: true }
 const NAMEN = {
   herbst: '🍂 Herbstlaub', herbstnacht: '🍁 Herbstnacht', sakura: '🌸 Sakura', mitternacht: '🌙 Mitternacht',
   ozean: '🌊 Ozean', wald: '🌲 Wald', schnee: '❄️ Schnee', regen: '🌧️ Regen', lagerfeuer: '🔥 Lagerfeuer', polarlicht: '🌌 Polarlicht',
+  gewitter: '⛈️ Gewitter', strand: '🏖️ Strand', unterwasser: '🐠 Unterwasser', wueste: '🏜️ Wüste', halloween: '🎃 Halloween', weihnachten: '🎄 Weihnachten',
 }
 const STAERKEN = { dezent: 'Dezent', normal: 'Normal', kraeftig: 'Kräftig' }
+const GROESSEN = { klein: 'Klein', mittel: 'Mittel', gross: 'Groß' }
+const MENGEN = { wenig: 'Wenig', normal: 'Normal', viel: 'Viel' }
 
 let settings = { ...DEFAULTS }
 let windows = []
 let tray = null
 let updateStatus = ''
+let pausiert = false
+let waechter = null
+
+// ---------- Pause bei Vollbild-Spielen ----------
+// Ein kleines PowerShell-Skript prüft alle 1,5 s, ob das Fenster im Vordergrund den ganzen Bildschirm füllt.
+const WAECHTER = `
+Add-Type @"
+using System; using System.Runtime.InteropServices; using System.Text;
+public class W {
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out R r);
+  [DllImport("user32.dll")] public static extern int GetClassName(IntPtr h, StringBuilder s, int n);
+  [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr h, uint f);
+  [DllImport("user32.dll")] public static extern bool GetMonitorInfo(IntPtr m, ref MI i);
+  public struct R { public int L, T, Ri, B; }
+  [StructLayout(LayoutKind.Sequential)] public struct MI { public int cb; public R mon; public R work; public uint flags; }
+}
+"@
+$last = ''
+while ($true) {
+  $h = [W]::GetForegroundWindow(); $r = New-Object W+R; [void][W]::GetWindowRect($h, [ref]$r)
+  $sb = New-Object System.Text.StringBuilder 256; [void][W]::GetClassName($h, $sb, 256); $c = $sb.ToString()
+  $m = [W]::MonitorFromWindow($h, 2); $mi = New-Object W+MI; $mi.cb = [Runtime.InteropServices.Marshal]::SizeOf($mi); [void][W]::GetMonitorInfo($m, [ref]$mi)
+  $fs = ($c -ne 'Progman' -and $c -ne 'WorkerW' -and $c -ne 'Shell_TrayWnd' -and $r.L -le $mi.mon.L -and $r.T -le $mi.mon.T -and $r.Ri -ge $mi.mon.Ri -and $r.B -ge $mi.mon.B)
+  $v = if ($fs) { '1' } else { '0' }
+  if ($v -ne $last) { [Console]::Out.WriteLine($v); [Console]::Out.Flush(); $last = $v }
+  Start-Sleep -Milliseconds 1500
+}
+`
+
+function waechterSetzen() {
+  const soll = process.platform === 'win32' && settings.autopause && settings.an
+  if (soll && waechter === null) {
+    const kodiert = Buffer.from(WAECHTER, 'utf16le').toString('base64')
+    waechter = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', kodiert], { windowsHide: true })
+    waechter.stdout.on('data', d => {
+      const v = String(d).trim().split(/\s+/).pop()
+      const neu = v === '1'
+      if (neu !== pausiert) { pausiert = neu; anwenden() }
+    })
+    waechter.on('exit', () => { waechter = null })
+  } else if (!soll && waechter !== null) {
+    waechter.kill()
+    waechter = null
+    if (pausiert) { pausiert = false; anwenden() }
+  }
+}
 
 // ---------- Selbst-Update ----------
 // Prüft beim Start und alle 4 Stunden das neueste GitHub-Release "desktop-vX.Y.Z".
@@ -97,17 +147,18 @@ function szene() {
 
 function anwenden() {
   nativeTheme.themeSource = settings.modus === 'hell' ? 'light' : settings.modus === 'dunkel' ? 'dark' : 'system'
-  const zeigen = settings.an && SCENES[settings.theme] !== undefined
+  const zeigen = settings.an && !pausiert && SCENES[settings.theme] !== undefined
   for (const w of windows) {
     if (w.isDestroyed()) continue
     if (!zeigen) {
       w.hide()
       continue
     }
-    w.webContents.send('szene', { svg: szene(), staerke: settings.staerke })
+    w.webContents.send('szene', { svg: szene(), staerke: settings.staerke, groesse: settings.groesse, menge: settings.menge, wind: settings.wind, sammeln: settings.sammeln })
     w.showInactive()
   }
   menue()
+  waechterSetzen()
 }
 
 function fensterBauen() {
@@ -136,12 +187,17 @@ function fensterBauen() {
 function menue() {
   if (tray === null) return
   const autostart = app.getLoginItemSettings().openAtLogin
-  tray.setToolTip(settings.an ? `Snake-Desktop: ${NAMEN[settings.theme] || settings.theme}` : 'Snake-Desktop: aus')
+  tray.setToolTip(!settings.an ? 'Snake-Desktop: aus' : pausiert ? 'Snake-Desktop: pausiert (Vollbild)' : `Snake-Desktop: ${NAMEN[settings.theme] || settings.theme}`)
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: settings.an ? 'Ausschalten' : 'Einschalten', click: () => schreiben({ an: !settings.an }) },
     { type: 'separator' },
     { label: 'Theme', submenu: Object.entries(NAMEN).map(([id, name]) => ({ label: name, type: 'radio', checked: settings.theme === id, click: () => schreiben({ theme: id, an: true }) })) },
     { label: 'Stärke', submenu: Object.entries(STAERKEN).map(([id, name]) => ({ label: name, type: 'radio', checked: settings.staerke === id, click: () => schreiben({ staerke: id }) })) },
+    { label: 'Größe', submenu: Object.entries(GROESSEN).map(([id, name]) => ({ label: name, type: 'radio', checked: settings.groesse === id, click: () => schreiben({ groesse: id }) })) },
+    { label: 'Menge', submenu: Object.entries(MENGEN).map(([id, name]) => ({ label: name, type: 'radio', checked: settings.menge === id, click: () => schreiben({ menge: id }) })) },
+    { label: 'Windböen', type: 'checkbox', checked: settings.wind, click: () => schreiben({ wind: !settings.wind }) },
+    { label: 'Blätter sammeln sich unten', type: 'checkbox', checked: settings.sammeln, click: () => schreiben({ sammeln: !settings.sammeln }) },
+    { label: 'Bei Vollbild-Spielen pausieren', type: 'checkbox', checked: settings.autopause, click: () => schreiben({ autopause: !settings.autopause }) },
     { label: 'Hell / Dunkel', submenu: [['dunkel', 'Dunkel'], ['hell', 'Hell'], ['auto', 'Wie Windows']].map(([id, name]) => ({ label: name, type: 'radio', checked: settings.modus === id, click: () => schreiben({ modus: id }) })) },
     { type: 'separator' },
     { label: `Version ${app.getVersion()}${updateStatus ? ` · ${updateStatus}` : ''}`, enabled: false },
@@ -199,4 +255,5 @@ if (!app.requestSingleInstanceLock()) {
     screen.on('display-metrics-changed', fensterBauen)
   })
   app.on('window-all-closed', e => e.preventDefault())
+  app.on('before-quit', () => { if (waechter !== null) waechter.kill() })
 }

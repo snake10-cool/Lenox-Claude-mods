@@ -1,7 +1,7 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register, RenderChildren, ThemeSetArgs } from 'claude-code'
 
-import type { Aktivitaet, Fortschritt, HubSettings, Statistik } from '../types'
+import type { Aktivitaet, Fokus, Fortschritt, HubSettings, Statistik, WetterInfo, Ziel } from '../types'
 import { makeColors } from './make-colors.js'
 import { SCENE_ALT, SCENES } from './scenes'
 import { THEME_SEEDS } from './themes'
@@ -13,6 +13,11 @@ const MODS: { id: string; name: string }[] = [
   { id: 'desktop', name: '🖥️ Auch auf dem ganzen PC (Snake-Desktop)' },
   { id: 'tageszeit', name: '🌗 Theme nach Tageszeit (nachts dunkler)' },
   { id: 'wetter', name: '🌦️ Theme nach Wetter (Regen, Schnee)' },
+  { id: 'saison', name: '🎃 Saison-Themes (Halloween, Weihnachten)' },
+  { id: 'fokus', name: '🍅 Fokus-Timer' },
+  { id: 'ziele', name: '🎯 Tagesziele' },
+  { id: 'notizen', name: '📝 Notizblock' },
+  { id: 'erfolge', name: '🏆 Erfolge' },
   { id: 'sound', name: '🔔 Sanfte Sounds' },
   { id: 'fortschritt', name: '📊 Fortschrittsbalken' },
   { id: 'leiste', name: '▶️ Leiste über dem Eingabefeld' },
@@ -55,11 +60,38 @@ const STAERKEN: { id: string; name: string; glass: { blur: number; opacity: numb
   { id: 'kraeftig', name: '🍁 Kräftig', glass: { blur: 0, opacity: 0.1 } },
 ]
 
+const GERAEUSCHE: { id: string; name: string }[] = [
+  { id: 'aus', name: '🔇 Aus' },
+  { id: 'regen', name: '🌧️ Regen' },
+  { id: 'feuer', name: '🔥 Kaminfeuer' },
+  { id: 'wind', name: '🍃 Wind' },
+]
+
+const GROESSEN = [{ id: 'klein', name: 'Klein' }, { id: 'mittel', name: 'Mittel' }, { id: 'gross', name: 'Groß' }]
+const MENGEN = [{ id: 'wenig', name: 'Wenig' }, { id: 'normal', name: 'Normal' }, { id: 'viel', name: 'Viel' }]
+
+const ERFOLGE: { id: string; name: string; info: string }[] = [
+  { id: 'erster', name: '🌱 Erster Auftrag', info: 'Den ersten Auftrag an Claude geschickt' },
+  { id: 'zehn', name: '🔟 Zehn Aufträge', info: '10 Aufträge insgesamt' },
+  { id: 'hundert', name: '💯 Hundert Aufträge', info: '100 Aufträge insgesamt' },
+  { id: 'nachteule', name: '🦉 Nachteule', info: 'Zwischen 0 und 4 Uhr gearbeitet' },
+  { id: 'frueh', name: '🐓 Frühaufsteher', info: 'Vor 7 Uhr gearbeitet' },
+  { id: 'themes5', name: '🎨 Stilwechsler', info: '5 verschiedene Themes gesehen' },
+  { id: 'themesAlle', name: '🌈 Alle Welten', info: 'Alle Themes gesehen' },
+  { id: 'fokus1', name: '🍅 Erste Fokus-Runde', info: 'Eine Fokus-Runde durchgezogen' },
+  { id: 'fokus10', name: '🧘 Fokus-Profi', info: '10 Fokus-Runden insgesamt' },
+  { id: 'ziele', name: '🎯 Alles erledigt', info: 'Mindestens 3 Tagesziele an einem Tag geschafft' },
+  { id: 'notiz', name: '📝 Gedankenstütze', info: 'Die erste Notiz geschrieben' },
+]
+
 const DEFAULTS: HubSettings = {
   theme: 'herbst',
   modus: 'dunkel',
   staerke: 'normal',
-  mods: { szenen: true, desktop: true, tageszeit: false, wetter: false, sound: false, fortschritt: true, leiste: true, aktivitaet: true, statistik: true, knoepfe: true, uhr: false, pause: false, schutz: true, fertig: true },
+  kompakt: false,
+  ambient: 'aus',
+  desk: { groesse: 'mittel', menge: 'normal', wind: true, sammeln: true, autopause: true },
+  mods: { szenen: true, desktop: true, tageszeit: false, wetter: false, saison: true, fokus: true, ziele: true, notizen: true, erfolge: true, sound: false, fortschritt: true, leiste: true, aktivitaet: true, statistik: true, knoepfe: true, uhr: false, pause: false, schutz: true, fertig: true },
   skills: { 'spiel-bauen': true, 'bug-jagd': true, 'flutter-release': true, 'einfach-erklaert': true, 'game-guide': true, 'ordner-aufraeumen': true, 'kurz-knapp': false, 'deutsch-immer': true },
 }
 
@@ -72,7 +104,7 @@ for (const [id, s] of Object.entries(THEME_SEEDS)) {
 
 // ---------- Zustand ----------
 
-const VERSION = '0.7.1'
+const VERSION = '0.8.0'
 const MARKETPLACE_URL = 'https://raw.githubusercontent.com/snake10-cool/Lenox-Claude-mods/main/.claude-plugin/marketplace.json'
 const PANE = 'snake-hub'
 const TITEL = '🐍 Snake-Hub'
@@ -82,12 +114,21 @@ const SCHUTZ = /(^|[\\/])(\.env(\..*)?|key\.properties|.*\.jks|.*\.keystore|.*\.
 
 const LEER: Fortschritt = { prozent: 0, aufgabe: '', schritt: '', laeuft: false, manuell: false }
 const fortschritt = atom({ plugin: 'snake-hub', key: 'fortschritt' } as const, LEER, { shape: 'fortschritt-2' })
-const settings = atom({ plugin: 'snake-hub', key: 'settings' } as const, DEFAULTS, { shape: 'settings-3' })
+const settings = atom({ plugin: 'snake-hub', key: 'settings' } as const, DEFAULTS, { shape: 'settings-4' })
 const aktivitaet = atom({ plugin: 'snake-hub', key: 'aktivitaet' } as const, [] as Aktivitaet[], { shape: 'aktivitaet-1' })
 const tab = atom({ plugin: 'snake-hub', key: 'tab' } as const, 'start', { shape: 'tab-1' })
+const fokus = atom({ plugin: 'snake-hub', key: 'fokus' } as const, { phase: 'aus', ende: 0, rest: 0, runden: 0 } as Fokus, { shape: 'fokus-1' })
+const notizen = atom({ plugin: 'snake-hub', key: 'notizen' } as const, [] as string[], { shape: 'notizen-1' })
+const ziele = atom({ plugin: 'snake-hub', key: 'ziele' } as const, [] as Ziel[], { shape: 'ziele-1' })
+const erfolge = atom({ plugin: 'snake-hub', key: 'erfolge' } as const, [] as string[], { shape: 'erfolge-1' })
+const wetterInfo = atom({ plugin: 'snake-hub', key: 'wetter' } as const, { ort: '', temp: null, code: null } as WetterInfo, { shape: 'wetter-1' })
+const uhrzeit = atom({ plugin: 'snake-hub', key: 'uhrzeit' } as const, 0, { shape: 'uhrzeit-1' })
 const statistik = atom({ plugin: 'snake-hub', key: 'statistik' } as const, { antworten: 0, werkzeuge: 0, dateien: [], start: 0 } as Statistik, { shape: 'statistik-1' })
 
 let uhrTimer: { cancel: () => void } | undefined
+let tickTimer: { cancel: () => void } | undefined
+let fokusTimer: { cancel: () => void } | undefined
+let ambientStopp: { abort: () => void } | undefined
 let autoTimer: { cancel: () => void } | undefined
 let wetterLage: 'regen' | 'schnee' | 'klar' | undefined
 let letztesEff = ''
@@ -122,7 +163,8 @@ const UPDATE_TEXT = [
 type Ort = { name: string; lat: number; lon: number }
 
 // Was gerade wirklich angezeigt wird: gewähltes Theme, ggf. ersetzt durch Wetter oder Nacht.
-function effektiv(s: HubSettings, stunde: number): { id: string; grund: string } {
+function effektiv(s: HubSettings, d: Date): { id: string; grund: string } {
+  const stunde = d.getHours()
   if (s.theme === 'aus' || PALETTES[s.theme] === undefined) {
     return { id: s.theme, grund: '' }
   }
@@ -132,15 +174,23 @@ function effektiv(s: HubSettings, stunde: number): { id: string; grund: string }
   if (s.mods.wetter && wetterLage === 'schnee') {
     return { id: 'schnee', grund: 'wegen Schnee' }
   }
+  const monat = d.getMonth() + 1
+  const tag = d.getDate()
+  if (s.mods.saison && ((monat === 10 && tag >= 24) || (monat === 11 && tag <= 2))) {
+    return { id: 'halloween', grund: 'Halloween-Zeit' }
+  }
+  if (s.mods.saison && monat === 12 && tag <= 26) {
+    return { id: 'weihnachten', grund: 'Weihnachtszeit' }
+  }
   const nacht = stunde >= 20 || stunde < 6
-  if (s.mods.tageszeit && nacht && !['mitternacht', 'herbstnacht', 'lagerfeuer', 'polarlicht'].includes(s.theme)) {
+  if (s.mods.tageszeit && nacht && !['mitternacht', 'herbstnacht', 'lagerfeuer', 'polarlicht', 'gewitter', 'unterwasser', 'halloween'].includes(s.theme)) {
     return { id: s.theme === 'herbst' ? 'herbstnacht' : 'mitternacht', grund: 'weil Nacht ist' }
   }
   return { id: s.theme, grund: '' }
 }
 
-async function stunde($: EngineInterface): Promise<number> {
-  return new Date(await $.clock.now()).getHours()
+async function datum($: EngineInterface): Promise<Date> {
+  return new Date(await $.clock.now())
 }
 
 async function wetterHolen($: EngineInterface): Promise<void> {
@@ -149,11 +199,13 @@ async function wetterHolen($: EngineInterface): Promise<void> {
     wetterLage = undefined
     return
   }
-  const res = await $.http.fetch(`https://api.open-meteo.com/v1/forecast?latitude=${ort.lat}&longitude=${ort.lon}&current=weather_code`)
+  const res = await $.http.fetch(`https://api.open-meteo.com/v1/forecast?latitude=${ort.lat}&longitude=${ort.lon}&current=weather_code,temperature_2m`)
   if (!res.ok) {
     return
   }
-  const code = Number((JSON.parse(res.text) as { current?: { weather_code?: number } }).current?.weather_code ?? 0)
+  const aktuell = (JSON.parse(res.text) as { current?: { weather_code?: number; temperature_2m?: number } }).current
+  const code = Number(aktuell?.weather_code ?? 0)
+  await update($, wetterInfo, () => ({ ort: ort.name.split(',')[0] ?? ort.name, temp: aktuell?.temperature_2m ?? null, code }))
   wetterLage = (code >= 51 && code <= 67) || (code >= 80 && code <= 82) || code >= 95 ? 'regen' : (code >= 71 && code <= 77) || code === 85 || code === 86 ? 'schnee' : 'klar'
 }
 
@@ -163,6 +215,82 @@ async function klang($: EngineInterface, datei: string): Promise<void> {
     await $.audio.play({ asset: `sounds/${datei}` }, { gain: 0.5 }).catch(() => undefined)
   }
 }
+function wetterEmoji(code: number | null): string {
+  if (code === null) return '🌡️'
+  if (code === 0) return '☀️'
+  if (code <= 3) return '⛅'
+  if (code <= 48) return '🌫️'
+  if (code <= 67 || (code >= 80 && code <= 82)) return '🌧️'
+  if (code <= 77 || code === 85 || code === 86) return '❄️'
+  return '⛈️'
+}
+
+async function erfolg($: EngineInterface, id: string): Promise<void> {
+  const s = await read($, settings)
+  const liste = await read($, erfolge)
+  const e = ERFOLGE.find(x => x.id === id)
+  if (!s.mods.erfolge || e === undefined || liste.includes(id)) return
+  const neu = [...liste, id]
+  await update($, erfolge, () => neu)
+  await $.store.set('erfolge', neu)
+  $.ui.toast(`🏆 Erfolg: ${e.name} – ${e.info}`)
+  void klang($, 'fertig.wav')
+}
+
+async function zaehlen($: EngineInterface, key: string, plus = 1): Promise<number> {
+  const n = Number((await $.store.get(key)) ?? 0) + plus
+  await $.store.set(key, n)
+  return n
+}
+
+function ambientSetzen($: EngineInterface, art: string): void {
+  ambientStopp?.abort()
+  ambientStopp = undefined
+  if (art === 'aus' || typeof AbortController === 'undefined') return
+  const ctl = new AbortController()
+  ambientStopp = ctl
+  void $.audio.play({ asset: `sounds/ambient-${art}.wav` }, { shouldLoop: true, gain: 0.35, signal: ctl.signal }).catch(() => undefined)
+}
+
+async function fokusStarten($: EngineInterface, minuten: number, phase: string): Promise<void> {
+  fokusTimer?.cancel()
+  const ende = (await $.clock.now()) + minuten * 60000
+  await update($, fokus, f => ({ ...f, phase, ende, rest: minuten }))
+  fokusTimer = $.clock.every(15000, async () => {
+    const jetzt = await $.clock.now()
+    const f = await read($, fokus)
+    const rest = Math.max(0, Math.ceil((f.ende - jetzt) / 60000))
+    if (f.ende - jetzt > 0) {
+      await update($, fokus, x => ({ ...x, rest }))
+      return
+    }
+    fokusTimer?.cancel()
+    fokusTimer = undefined
+    if (f.phase === 'fokus') {
+      await update($, fokus, x => ({ ...x, phase: 'aus', rest: 0, runden: x.runden + 1 }))
+      const gesamt = await zaehlen($, 'fokusGesamt')
+      $.ui.toast('🍅 Fokus-Runde geschafft! Gönn dir 5 Minuten Pause.')
+      void klang($, 'fertig.wav')
+      void erfolg($, 'fokus1')
+      if (gesamt >= 10) void erfolg($, 'fokus10')
+    } else {
+      await update($, fokus, x => ({ ...x, phase: 'aus', rest: 0 }))
+      $.ui.toast('☕ Pause vorbei. Weiter geht’s!')
+      void klang($, 'fertig.wav')
+    }
+  })
+}
+
+async function zieleHeute($: EngineInterface): Promise<Ziel[]> {
+  const heute = (await datum($)).toDateString()
+  if ((await $.store.get('zieleDatum')) !== heute) {
+    await $.store.set('zieleDatum', heute)
+    await $.store.set('ziele', [])
+    return []
+  }
+  return ((await $.store.get('ziele')) as Ziel[] | undefined) ?? []
+}
+
 let pauseTimer: { cancel: () => void } | undefined
 let schritte = 0
 let letzterKlick = 0
@@ -200,6 +328,9 @@ function merge(saved: unknown): HubSettings {
     theme: typeof s.theme === 'string' ? s.theme : DEFAULTS.theme,
     modus: typeof s.modus === 'string' ? s.modus : DEFAULTS.modus,
     staerke: typeof s.staerke === 'string' ? s.staerke : DEFAULTS.staerke,
+    kompakt: s.kompakt === true,
+    ambient: typeof s.ambient === 'string' ? s.ambient : DEFAULTS.ambient,
+    desk: { ...DEFAULTS.desk, ...(s.desk ?? {}) },
     mods: { ...DEFAULTS.mods, ...(s.mods ?? {}) },
     skills: { ...DEFAULTS.skills, ...(s.skills ?? {}) },
   }
@@ -210,17 +341,33 @@ async function desktopSync($: EngineInterface, s: HubSettings, theme: string): P
   if (home === undefined) {
     return
   }
-  const daten = { an: s.mods.desktop === true && SCENES[theme] !== undefined, theme, modus: s.modus, staerke: s.staerke }
-  await $.fs.write(`${home}/.snake-hub/desktop.json`, JSON.stringify(daten, null, 2))
+  const pfad = `${home}/.snake-hub/desktop.json`
+  let alt: Record<string, unknown> = {}
+  try {
+    alt = JSON.parse(String(await $.fs.read(pfad))) as Record<string, unknown>
+  } catch {
+    alt = {}
+  }
+  const daten = { ...alt, an: s.mods.desktop === true && SCENES[theme] !== undefined, theme, modus: s.modus, staerke: s.staerke, ...s.desk }
+  await $.fs.write(pfad, JSON.stringify(daten, null, 2))
 }
 
 async function applyTheme($: EngineInterface, s: HubSettings): Promise<string> {
-  const eff = effektiv(s, await stunde($))
+  const eff = effektiv(s, await datum($))
   void desktopSync($, s, eff.id).catch(() => undefined)
   if (letztesEff !== '' && letztesEff !== eff.id) {
     void klang($, 'rascheln.wav')
   }
   letztesEff = eff.id
+  if (PALETTES[eff.id] !== undefined) {
+    const gesehen = ((await $.store.get('themesGesehen')) as string[] | undefined) ?? []
+    if (!gesehen.includes(eff.id)) {
+      const neu = [...gesehen, eff.id]
+      await $.store.set('themesGesehen', neu)
+      if (neu.length >= 5) void erfolg($, 'themes5')
+      if (neu.length >= Object.keys(PALETTES).length) void erfolg($, 'themesAlle')
+    }
+  }
   const colors = PALETTES[eff.id]
   if (colors === undefined) {
     await $.theme.clear()
@@ -248,7 +395,7 @@ function applyTimers($: EngineInterface, s: HubSettings): void {
       if (x.mods.wetter) {
         await wetterHolen($).catch(() => undefined)
       }
-      if (effektiv(x, await stunde($)).id !== letztesEff) {
+      if (effektiv(x, await datum($)).id !== letztesEff) {
         await applyTheme($, x)
       }
     }
@@ -257,6 +404,10 @@ function applyTimers($: EngineInterface, s: HubSettings): void {
   }
   uhrTimer = undefined
   pauseTimer = undefined
+  tickTimer?.cancel()
+  tickTimer = $.clock.every(30000, async () => {
+    await update($, uhrzeit, () => Date.now())
+  })
   if (s.mods.uhr) {
     const tick = async () => {
       const now = await $.clock.now()
@@ -299,17 +450,30 @@ export const register: Register = on => {
     await update($, statistik, () => ({ antworten: 0, werkzeuge: 0, dateien: [], start }))
     const s = merge(await $.store.get('settings'))
     await update($, settings, () => s)
+    const gespeicherteNotizen = ((await $.store.get('notizen')) as string[] | undefined) ?? []
+    await update($, notizen, () => gespeicherteNotizen)
+    const heutigeZiele = await zieleHeute($)
+    await update($, ziele, () => heutigeZiele)
+    const meineErfolge = ((await $.store.get('erfolge')) as string[] | undefined) ?? []
+    await update($, erfolge, () => meineErfolge)
+    await update($, uhrzeit, () => start)
     await applyTheme($, s)
     applyTimers($, s)
+    ambientSetzen($, s.ambient)
 
     await $.command.register({ name: 'hub', description: 'Öffnet den Snake-Hub und zeigt, was an und aus ist' })
-    await $.command.register({ name: 'look', description: 'Theme wechseln: herbst, herbstnacht, sakura, mitternacht, ozean, wald, schnee, regen, lagerfeuer, polarlicht oder aus' })
+    await $.command.register({ name: 'look', description: 'Theme wechseln: herbst, herbstnacht, sakura, mitternacht, ozean, wald, schnee, regen, lagerfeuer, polarlicht, gewitter, strand, unterwasser, wueste, halloween, weihnachten oder aus' })
+    await $.command.register({ name: 'fokus', description: 'Fokus-Timer starten: /fokus (25 min), /fokus 50, /fokus pause, /fokus stopp' })
+    await $.command.register({ name: 'notiz', description: 'Notiz in den Snake-Hub schreiben: /notiz Text' })
+    await $.command.register({ name: 'ziel', description: 'Tagesziel hinzufügen: /ziel Text' })
+    await $.command.register({ name: 'erfolge', description: 'Zeigt deine Snake-Hub-Erfolge' })
+    await $.command.register({ name: 'geraeusch', description: 'Umgebungsgeräusch: regen, feuer, wind oder aus' })
     await $.command.register({ name: 'hub-update', description: 'Zeigt, ob es ein Snake-Hub-Update gibt und wie man es holt' })
     await $.command.register({ name: 'wetter', description: 'Ort fürs Wetter-Theme setzen, z. B. /wetter Braunau am Inn' })
     await $.command.register({ name: 'modus', description: 'Hell oder dunkel: dunkel, hell oder auto' })
     await $.command.register({ name: 'blaetter', description: 'Wie stark der Hintergrund zu sehen ist: dezent, normal oder kraeftig' })
-    await $.command.register({ name: 'mod', description: 'Mod an/aus: szenen, desktop, tageszeit, wetter, sound, fortschritt, leiste, aktivitaet, statistik, knoepfe, uhr, pause, schutz, fertig' })
-    await $.command.register({ name: 'skill', description: 'Skill an/aus: spiel-bauen, bug-jagd, flutter-release, einfach-erklaert, game-guide, kurz-knapp, deutsch-immer' })
+    await $.command.register({ name: 'mod', description: 'Mod an/aus: szenen, desktop, tageszeit, wetter, saison, fokus, ziele, notizen, erfolge, sound, fortschritt, leiste, aktivitaet, statistik, knoepfe, uhr, pause, schutz, fertig' })
+    await $.command.register({ name: 'skill', description: 'Skill an/aus: spiel-bauen, bug-jagd, flutter-release, einfach-erklaert, game-guide, ordner-aufraeumen, kurz-knapp, deutsch-immer' })
     await $.command.register({ name: 'mehr-details', description: 'Claude fügt dem Projekt mehr passende Details hinzu' })
     await $.tool.register({
       name: 'fortschritt',
@@ -379,6 +543,64 @@ export const register: Register = on => {
     return { text: `Hintergrund: ${st.name}` }
   })
 
+  on('command.run', { command: 'fokus' }, async ($, e) => {
+    const arg = (e.args ?? '').trim().toLowerCase()
+    if (arg === 'stopp' || arg === 'stop') {
+      fokusTimer?.cancel()
+      fokusTimer = undefined
+      await update($, fokus, f => ({ ...f, phase: 'aus', rest: 0 }))
+      return { text: '🍅 Fokus-Timer gestoppt.' }
+    }
+    if (arg === 'pause') {
+      await fokusStarten($, 5, 'pause')
+      return { text: '☕ 5 Minuten Pause gestartet.' }
+    }
+    const min = Math.max(1, Math.min(180, Number(arg) || 25))
+    await fokusStarten($, min, 'fokus')
+    return { text: `🍅 Fokus-Runde: ${min} Minuten. Los geht’s!` }
+  })
+
+  on('command.run', { command: 'notiz' }, async ($, e) => {
+    const text = (e.args ?? '').trim()
+    if (text === '') {
+      const n = await read($, notizen)
+      return { text: n.length ? `📝 Notizen:\n${n.map(x => `• ${x}`).join('\n')}` : '📝 Noch keine Notizen. Beispiel: /notiz Trashketball probieren' }
+    }
+    const neu = [...(await read($, notizen)), text].slice(-30)
+    await update($, notizen, () => neu)
+    await $.store.set('notizen', neu)
+    void erfolg($, 'notiz')
+    return { text: `📝 Notiert: ${text}` }
+  })
+
+  on('command.run', { command: 'ziel' }, async ($, e) => {
+    const text = (e.args ?? '').trim()
+    if (text === '') {
+      const z = await read($, ziele)
+      return { text: z.length ? `🎯 Heute:\n${z.map(x => `${x.fertig ? '✓' : '○'} ${x.text}`).join('\n')}` : '🎯 Noch keine Ziele für heute. Beispiel: /ziel Sakura fertig machen' }
+    }
+    const neu = [...(await zieleHeute($)), { text, fertig: false }].slice(-10)
+    await update($, ziele, () => neu)
+    await $.store.set('ziele', neu)
+    return { text: `🎯 Ziel für heute: ${text}` }
+  })
+
+  on('command.run', { command: 'erfolge' }, async $ => {
+    const liste = await read($, erfolge)
+    return { text: `🏆 ${liste.length}/${ERFOLGE.length} Erfolge\n` + ERFOLGE.map(x => `${liste.includes(x.id) ? '✓' : '○'} ${x.name}: ${x.info}`).join('\n') }
+  })
+
+  on('command.run', { command: 'geraeusch' }, async ($, e) => {
+    const art = (e.args ?? '').trim().toLowerCase()
+    const g = GERAEUSCHE.find(x => x.id === art)
+    if (g === undefined) {
+      return { text: `Möglich: ${GERAEUSCHE.map(x => x.id).join(', ')}` }
+    }
+    await save($, x => ({ ...x, ambient: art }))
+    ambientSetzen($, art)
+    return { text: `Geräusch: ${g.name}` }
+  })
+
   on('command.run', { command: 'hub-update' }, async $ => {
     await updatePruefen($).catch(() => undefined)
     return { text: neueVersion ? `🐍 Snake-Hub ${neueVersion} ist verfügbar (du hast ${VERSION}).\n${UPDATE_TEXT}` : `✅ Snake-Hub ${VERSION} ist aktuell.` }
@@ -441,6 +663,13 @@ export const register: Register = on => {
     schritte = 0
     await update($, fortschritt, () => ({ prozent: 3, aufgabe: kurz(e.text, 48), schritt: 'Claude denkt nach …', laeuft: true, manuell: false }))
     await update($, statistik, st => ({ ...st, antworten: st.antworten + 1 }))
+    const gesamt = await zaehlen($, 'auftraegeGesamt')
+    void erfolg($, 'erster')
+    if (gesamt >= 10) void erfolg($, 'zehn')
+    if (gesamt >= 100) void erfolg($, 'hundert')
+    const h = (await datum($)).getHours()
+    if (h < 4) void erfolg($, 'nachteule')
+    if (h >= 4 && h < 7) void erfolg($, 'frueh')
 
     const an = SKILLS.filter(k => s.skills[k.id]).map(k => k.context)
     const aus = SKILLS.filter(k => !s.skills[k.id]).map(k => k.id)
@@ -556,31 +785,72 @@ export const register: Register = on => {
   // ---------- Panel ----------
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text, Button } = $.ui.resolve(e)
+    const { Box, Text, Button, Input } = $.ui.resolve(e)
     const s = await read($, settings)
     const f = await read($, fortschritt)
     const feed = await read($, aktivitaet)
     const st = await read($, statistik)
     const reiter = await read($, tab)
-    const jetzt = await $.clock.now()
-    const t = THEME_SEEDS[s.theme]
+    const fk = await read($, fokus)
+    const meineNotizen = await read($, notizen)
+    const meineZiele = await read($, ziele)
+    const meineErfolge = await read($, erfolge)
+    const w = await read($, wetterInfo)
+    await read($, uhrzeit)
+    const jetzt = new Date(await $.clock.now())
+    const eff = effektiv(s, jetzt)
+    const t = THEME_SEEDS[eff.id]
+    const k = s.kompakt
 
     const setSetting = (patch: Partial<HubSettings>) => async () => {
       const x = await save($, y => ({ ...y, ...patch }))
       await applyTheme($, x)
     }
+    const setDesk = (patch: Partial<HubSettings['desk']>) => async () => {
+      const x = await save($, y => ({ ...y, desk: { ...y.desk, ...patch } }))
+      await applyTheme($, x)
+    }
     const toggleMod = (id: string) => async () => {
       const x = await save($, y => ({ ...y, mods: { ...y.mods, [id]: !y.mods[id] } }))
       applyTimers($, x)
-      if (['szenen', 'desktop', 'tageszeit', 'wetter'].includes(id)) {
+      if (['szenen', 'desktop', 'tageszeit', 'wetter', 'saison'].includes(id)) {
         await applyTheme($, x)
       }
     }
     const toggleSkill = (id: string) => async () => {
       await save($, y => ({ ...y, skills: { ...y.skills, [id]: !y.skills[id] } }))
     }
+    const notizDazu = async (text: string) => {
+      if (text.trim() === '') return
+      const neu = [...(await read($, notizen)), text.trim()].slice(-30)
+      await update($, notizen, () => neu)
+      await $.store.set('notizen', neu)
+      void erfolg($, 'notiz')
+    }
+    const notizWeg = (idx: number) => async () => {
+      const neu = (await read($, notizen)).filter((_, j) => j !== idx)
+      await update($, notizen, () => neu)
+      await $.store.set('notizen', neu)
+    }
+    const zielDazu = async (text: string) => {
+      if (text.trim() === '') return
+      const neu = [...(await zieleHeute($)), { text: text.trim(), fertig: false }].slice(-10)
+      await update($, ziele, () => neu)
+      await $.store.set('ziele', neu)
+    }
+    const zielUm = (idx: number) => async () => {
+      const neu = (await read($, ziele)).map((z, j) => (j === idx ? { ...z, fertig: !z.fertig } : z))
+      await update($, ziele, () => neu)
+      await $.store.set('ziele', neu)
+      if (neu.length >= 3 && neu.every(z => z.fertig)) void erfolg($, 'ziele')
+    }
 
-    const Abschnitt = (titel: string, kinder: RenderChildren) => (
+    const Abschnitt = (titel: string, kinder: RenderChildren) => k ? (
+      <Box flexDirection="column" gap={0}>
+        <Text size="footnote" weight="bold" dimColor>{titel}</Text>
+        {kinder}
+      </Box>
+    ) : (
       <Box flexDirection="column" borderStyle="round" paddingX={1} paddingY={0} gap={0}>
         <Text size="heading" weight="bold">{titel}</Text>
         {kinder}
@@ -602,19 +872,34 @@ export const register: Register = on => {
       </Box>
     )
 
+    const Balken = (prozent: number, breite: number, farbe: string) => (
+      <Text mono>
+        <Text backgroundColor={farbe}>{' '.repeat(Math.round((prozent / 100) * breite))}</Text>
+        <Text backgroundColor="subtle">{' '.repeat(breite - Math.round((prozent / 100) * breite))}</Text>
+      </Text>
+    )
+
     const REITER = [
       { id: 'start', label: '🏠 Start' },
+      { id: 'extras', label: '🍅 Extras' },
       { id: 'look', label: '🎨 Aussehen' },
       { id: 'mods', label: '🧩 Mods' },
       { id: 'skills', label: '🧠 Skills' },
     ]
+    const zeit = jetzt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+    const minuten = Math.max(0, Math.floor((jetzt.getTime() - st.start) / 60000))
+    const fokusAn = fk.phase !== 'aus'
+    const fokusDauer = fk.phase === 'pause' ? 5 : 25
 
     return (
       <Box flexDirection="column" gap={1}>
         <Box flexDirection="column">
-          <Text size="title" weight="bold">🐍 Snake-Hub <Text size="caption" dimColor>v{VERSION}</Text></Text>
-          <Text dimColor size="footnote">
-            {t ? `${t.emoji} ${t.name}` : 'Kein Theme'} · {s.modus === 'hell' ? 'Hell' : s.modus === 'auto' ? 'Wie Windows' : 'Dunkel'} · {MODS.filter(m => s.mods[m.id]).length}/{MODS.length} Mods · {SKILLS.filter(k => s.skills[k.id]).length}/{SKILLS.length} Skills
+          <Text size={k ? 'heading' : 'title'} weight="bold">🐍 Snake-Hub <Text size="caption" dimColor>v{VERSION}</Text></Text>
+          <Text size="footnote">
+            🕒 {zeit}{w.ort !== '' && w.temp !== null ? `  ·  ${wetterEmoji(w.code)} ${Math.round(w.temp)} °C ${w.ort}` : ''}  ·  ⏱️ {minuten} min{fokusAn ? `  ·  ${fk.phase === 'fokus' ? '🍅' : '☕'} ${fk.rest} min` : ''}
+          </Text>
+          <Text dimColor size="caption">
+            {t ? `${t.emoji} ${t.name}` : 'Kein Theme'}{eff.grund ? ` (${eff.grund})` : ''} · {s.modus === 'hell' ? 'Hell' : s.modus === 'auto' ? 'Wie Windows' : 'Dunkel'} · {MODS.filter(m => s.mods[m.id]).length}/{MODS.length} Mods · {SKILLS.filter(x => s.skills[x.id]).length}/{SKILLS.length} Skills
           </Text>
         </Box>
 
@@ -635,10 +920,7 @@ export const register: Register = on => {
               <Box flexDirection="column">
                 <Text weight="semibold">{f.aufgabe}</Text>
                 <Box flexDirection="row" gap={1} alignItems="center">
-                  <Text mono>
-                    <Text backgroundColor={f.laeuft ? 'claude' : 'success'}>{' '.repeat(Math.round((f.prozent / 100) * 26))}</Text>
-                    <Text backgroundColor="subtle">{' '.repeat(26 - Math.round((f.prozent / 100) * 26))}</Text>
-                  </Text>
+                  {Balken(f.prozent, k ? 18 : 26, f.laeuft ? 'claude' : 'success')}
                   <Text tabular weight="semibold">{Math.round(f.prozent)} %</Text>
                 </Box>
                 <Text dimColor size="footnote">{f.laeuft ? f.schritt : '🎉 Fertig – kann abgeholt werden!'}</Text>
@@ -647,14 +929,14 @@ export const register: Register = on => {
 
             {s.mods.statistik && Abschnitt('📈 Diese Sitzung', (
               <Box flexDirection="row" flexWrap="wrap" columnGap={3}>
-                <Text tabular>⏱️ {Math.max(0, Math.floor((jetzt - st.start) / 60000))} min</Text>
                 <Text tabular>💬 {st.antworten} Aufträge</Text>
                 <Text tabular>🔧 {st.werkzeuge} Schritte</Text>
                 <Text tabular>📁 {st.dateien.length} Dateien</Text>
+                {s.mods.erfolge && <Text tabular>🏆 {meineErfolge.length}/{ERFOLGE.length}</Text>}
               </Box>
             ))}
 
-            {s.mods.aktivitaet && Abschnitt('📜 Was Claude gerade tut', (
+            {s.mods.aktivitaet && !k && Abschnitt('📜 Was Claude gerade tut', (
               <Box flexDirection="column">
                 {feed.length === 0 && <Text dimColor>Noch nichts passiert.</Text>}
                 {feed.slice(-6).reverse().map(a => (
@@ -665,7 +947,72 @@ export const register: Register = on => {
               </Box>
             ))}
 
-            {s.mods.knoepfe && Abschnitt('🎛️ Schnellknöpfe', Chips(KNOEPFE.map(k => ({ id: `k-${k.label}`, label: k.label, aktiv: false, los: () => void sende($, k.prompt) }))))}
+            {s.mods.knoepfe && Abschnitt('🎛️ Schnellknöpfe', Chips(KNOEPFE.map(x => ({ id: `k-${x.label}`, label: x.label, aktiv: false, los: () => void sende($, x.prompt) }))))}
+          </Box>
+        )}
+
+        {reiter === 'extras' && (
+          <Box flexDirection="column" gap={1}>
+            {s.mods.fokus && Abschnitt('🍅 Fokus-Timer', (
+              <Box flexDirection="column">
+                {fokusAn ? (
+                  <Box flexDirection="column">
+                    <Text weight="semibold">{fk.phase === 'fokus' ? '🍅 Fokus' : '☕ Pause'}: noch {fk.rest} min</Text>
+                    {Balken(100 - (fk.rest / fokusDauer) * 100, k ? 18 : 26, fk.phase === 'fokus' ? 'claude' : 'success')}
+                  </Box>
+                ) : (
+                  <Text dimColor>Heute {fk.runden} {fk.runden === 1 ? 'Runde' : 'Runden'} geschafft.</Text>
+                )}
+                {Chips([
+                  { id: 'f25', label: '🍅 25 min', aktiv: fk.phase === 'fokus', los: () => void fokusStarten($, 25, 'fokus') },
+                  { id: 'f50', label: '🍅 50 min', aktiv: false, los: () => void fokusStarten($, 50, 'fokus') },
+                  { id: 'fp', label: '☕ 5 min Pause', aktiv: fk.phase === 'pause', los: () => void fokusStarten($, 5, 'pause') },
+                  { id: 'fs', label: '⏹ Stopp', aktiv: false, los: () => { fokusTimer?.cancel(); fokusTimer = undefined; void update($, fokus, x => ({ ...x, phase: 'aus', rest: 0 })) } },
+                ])}
+              </Box>
+            ))}
+
+            {s.mods.ziele && Abschnitt(`🎯 Tagesziele ${meineZiele.filter(z => z.fertig).length}/${meineZiele.length}`, (
+              <Box flexDirection="column">
+                {meineZiele.map((z, j) => (
+                  <Box key={`z-${j}`} flexDirection="row" justifyContent="space-between" alignItems="center">
+                    <Text strikethrough={z.fertig} dimColor={z.fertig}>{z.text}</Text>
+                    <Button key={`zb-${j}`} label={z.fertig ? '✓' : '○'} variant={z.fertig ? 'primary' : 'secondary'} onPress={() => void zielUm(j)()} />
+                  </Box>
+                ))}
+                <Input key="ziel-neu" placeholder="Neues Ziel für heute …" submitLabel="Dazu" onSubmit={v => void zielDazu(v)} />
+              </Box>
+            ))}
+
+            {s.mods.notizen && Abschnitt('📝 Notizen', (
+              <Box flexDirection="column">
+                {meineNotizen.length === 0 && <Text dimColor size="footnote">Noch leer. Schreib unten etwas rein.</Text>}
+                {meineNotizen.map((n, j) => (
+                  <Box key={`n-${j}`} flexDirection="row" justifyContent="space-between" alignItems="center">
+                    <Text size="footnote">• {n}</Text>
+                    <Button key={`nb-${j}`} label="✕" variant="secondary" onPress={() => void notizWeg(j)()} />
+                  </Box>
+                ))}
+                <Input key="notiz-neu" placeholder="Notiz …" submitLabel="Merken" onSubmit={v => void notizDazu(v)} />
+              </Box>
+            ))}
+
+            {Abschnitt('🎧 Geräusche', (
+              <Box flexDirection="column">
+                {Chips(GERAEUSCHE.map(g => ({ id: `a-${g.id}`, label: g.name, aktiv: s.ambient === g.id, los: () => { void save($, x => ({ ...x, ambient: g.id })); ambientSetzen($, g.id) } })))}
+                <Text dimColor size="caption">Leises Endlos-Geräusch im Hintergrund.</Text>
+              </Box>
+            ))}
+
+            {s.mods.erfolge && Abschnitt(`🏆 Erfolge ${meineErfolge.length}/${ERFOLGE.length}`, (
+              <Box flexDirection="column">
+                {ERFOLGE.map(x => (
+                  <Text key={`e-${x.id}`} size="footnote" dimColor={!meineErfolge.includes(x.id)}>
+                    {meineErfolge.includes(x.id) ? '✓' : '○'} {x.name} <Text dimColor size="caption">{x.info}</Text>
+                  </Text>
+                ))}
+              </Box>
+            ))}
           </Box>
         )}
 
@@ -682,14 +1029,27 @@ export const register: Register = on => {
                 <Text dimColor size="caption">Fahr mit der Maus an Blätter, Blüten oder Flocken heran: Sie weichen dir aus.</Text>
               </Box>
             ))}
-            {Abschnitt('🖥️ Wo', (
+            {Abschnitt('🖥️ Wo und wann', (
               <Box flexDirection="column">
                 {Schalter('w-szenen', 'In Claude', s.mods.szenen === true, () => void toggleMod('szenen')())}
                 {Schalter('w-desktop', 'Auf dem ganzen PC (Snake-Desktop)', s.mods.desktop === true, () => void toggleMod('desktop')())}
                 {Schalter('w-tag', 'Nachts automatisch dunkler', s.mods.tageszeit === true, () => void toggleMod('tageszeit')())}
                 {Schalter('w-wetter', 'Theme nach Wetter (Ort mit /wetter)', s.mods.wetter === true, () => void toggleMod('wetter')())}
+                {Schalter('w-saison', 'Halloween und Weihnachten automatisch', s.mods.saison === true, () => void toggleMod('saison')())}
               </Box>
             ))}
+            {s.mods.desktop && Abschnitt('🖥️ Snake-Desktop', (
+              <Box flexDirection="column">
+                <Text size="footnote" dimColor>Größe</Text>
+                {Chips(GROESSEN.map(g => ({ id: `dg-${g.id}`, label: g.name, aktiv: s.desk.groesse === g.id, los: () => void setDesk({ groesse: g.id })() })))}
+                <Text size="footnote" dimColor>Menge</Text>
+                {Chips(MENGEN.map(g => ({ id: `dm-${g.id}`, label: g.name, aktiv: s.desk.menge === g.id, los: () => void setDesk({ menge: g.id })() })))}
+                {Schalter('dw', '🌬️ Windböen', s.desk.wind, () => void setDesk({ wind: !s.desk.wind })())}
+                {Schalter('ds', '🍂 Blätter sammeln sich unten', s.desk.sammeln, () => void setDesk({ sammeln: !s.desk.sammeln })())}
+                {Schalter('dp', '🎮 Bei Vollbild-Spielen pausieren', s.desk.autopause, () => void setDesk({ autopause: !s.desk.autopause })())}
+              </Box>
+            ))}
+            {Abschnitt('📐 Ansicht', Schalter('kompakt', 'Kompakt (weniger Rahmen, weniger Platz)', k, () => void save($, y => ({ ...y, kompakt: !y.kompakt })))) }
           </Box>
         )}
 
@@ -701,7 +1061,7 @@ export const register: Register = on => {
 
         {reiter === 'skills' && Abschnitt('🧠 Skills', (
           <Box flexDirection="column">
-            {SKILLS.map(k => Schalter(`s-${k.id}`, k.name, s.skills[k.id] === true, () => void toggleSkill(k.id)()))}
+            {SKILLS.map(x => Schalter(`s-${x.id}`, x.name, s.skills[x.id] === true, () => void toggleSkill(x.id)()))}
             <Text dimColor size="caption">Änderungen gelten ab deiner nächsten Nachricht.</Text>
           </Box>
         ))}

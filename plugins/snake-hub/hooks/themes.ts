@@ -62,4 +62,40 @@ export const THEME_SEEDS: Record<string, Seed> = {
     light: { 'surface-0': '#d8e6ee', 'surface-1': '#e3eef3', 'surface-2': '#eef5f8', 'text-primary': '#122028', 'text-secondary': '#36505c', 'text-muted': '#4c6672' },
     dark: { 'surface-0': '#07101a', 'surface-1': '#0c1822', 'surface-2': '#11202c', 'surface-3': '#152633', 'text-primary': '#e2f2f2', 'text-secondary': '#bcd6da', 'text-muted': '#93b2b8' },
   },
+  gewitter: {
+    name: 'Gewitter', emoji: '⛈️',
+    roles: { accent: '#5a6ad0', danger: '#c0402f', success: '#3f8a5a', warning: '#b0801a', pro: '#7a5ab0' },
+    light: { 'surface-0': '#d6dae2', 'surface-1': '#e0e3ea', 'surface-2': '#ebedf2', 'text-primary': '#161a22', 'text-secondary': '#3a414e', 'text-muted': '#525a68' },
+    dark: { 'surface-0': '#0a0d14', 'surface-1': '#10141d', 'surface-2': '#161b26', 'surface-3': '#1b212d', 'text-primary': '#e4e8f0', 'text-secondary': '#c0c7d3', 'text-muted': '#98a1b0' },
+  },
+  strand: {
+    name: 'Strand', emoji: '🏖️',
+    roles: { accent: '#1f8fb0', danger: '#c0402f', success: '#3f8a5a', warning: '#b0801a', pro: '#7a5ab0' },
+    light: { 'surface-0': '#f3e6cc', 'surface-1': '#f7eedb', 'surface-2': '#fbf5ea', 'text-primary': '#1e2a2e', 'text-secondary': '#41535a', 'text-muted': '#566a72' },
+    dark: { 'surface-0': '#0d1630', 'surface-1': '#121d3a', 'surface-2': '#182444', 'surface-3': '#1d2a4c', 'text-primary': '#e8eef8', 'text-secondary': '#c4cfe2', 'text-muted': '#9eabc4' },
+  },
+  unterwasser: {
+    name: 'Unterwasser', emoji: '🐠',
+    roles: { accent: '#1a8fb0', danger: '#c0402f', success: '#3f8a5a', warning: '#b0801a', pro: '#7a5ab0' },
+    light: { 'surface-0': '#d2eaf0', 'surface-1': '#dff1f5', 'surface-2': '#ecf7fa', 'text-primary': '#0e2228', 'text-secondary': '#30505a', 'text-muted': '#466670' },
+    dark: { 'surface-0': '#031520', 'surface-1': '#071d2a', 'surface-2': '#0b2534', 'surface-3': '#0f2c3c', 'text-primary': '#dff2f8', 'text-secondary': '#b8d8e2', 'text-muted': '#8eb8c6' },
+  },
+  wueste: {
+    name: 'Wüste', emoji: '🏜️',
+    roles: { accent: '#c0702a', danger: '#c0402f', success: '#3f8a5a', warning: '#b0801a', pro: '#7a5ab0' },
+    light: { 'surface-0': '#f2dfc0', 'surface-1': '#f6e8d0', 'surface-2': '#faf1e2', 'text-primary': '#2a1c10', 'text-secondary': '#54402a', 'text-muted': '#6c5640' },
+    dark: { 'surface-0': '#1a0f12', 'surface-1': '#231518', 'surface-2': '#2c1b1e', 'surface-3': '#332024', 'text-primary': '#f4e6d6', 'text-secondary': '#d8c2ac', 'text-muted': '#b49c86' },
+  },
+  halloween: {
+    name: 'Halloween', emoji: '🎃',
+    roles: { accent: '#e2741e', danger: '#c0402f', success: '#3f8a5a', warning: '#b0801a', pro: '#7a5ab0' },
+    light: { 'surface-0': '#ead6c6', 'surface-1': '#f0e0d2', 'surface-2': '#f6ebe0', 'text-primary': '#24141e', 'text-secondary': '#4e3444', 'text-muted': '#644a58' },
+    dark: { 'surface-0': '#110818', 'surface-1': '#190c22', 'surface-2': '#21102c', 'surface-3': '#271332', 'text-primary': '#f2e4ec', 'text-secondary': '#d4bfcc', 'text-muted': '#ae98a8' },
+  },
+  weihnachten: {
+    name: 'Weihnachten', emoji: '🎄',
+    roles: { accent: '#c8382a', danger: '#c0402f', success: '#3f8a5a', warning: '#b0801a', pro: '#7a5ab0' },
+    light: { 'surface-0': '#e4ebf2', 'surface-1': '#ecf1f6', 'surface-2': '#f5f8fb', 'text-primary': '#141c26', 'text-secondary': '#38465a', 'text-muted': '#4e5e72' },
+    dark: { 'surface-0': '#0a1222', 'surface-1': '#0f182c', 'surface-2': '#141f36', 'surface-3': '#18243e', 'text-primary': '#e8eef8', 'text-secondary': '#c4d0e2', 'text-muted': '#9eaec4' },
+  },
 }
