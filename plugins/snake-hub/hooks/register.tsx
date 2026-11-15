@@ -112,7 +112,8 @@ for (const [id, s] of Object.entries(THEME_SEEDS)) {
 
 // ---------- Zustand ----------
 
-const VERSION = '0.9.0'
+const VERSION = '0.9.1'
+const EIGENE_BEFEHLE = ['hub', 'look', 'modus', 'blaetter', 'mod', 'skill', 'mehr-details', 'fokus', 'notiz', 'ziel', 'erfolge', 'geraeusch', 'wetter', 'hub-update']
 const MARKETPLACE_URL = 'https://raw.githubusercontent.com/snake10-cool/Lenox-Claude-mods/main/.claude-plugin/marketplace.json'
 const PANE = 'snake-hub'
 const TITEL = '🐍 Snake-Hub'
@@ -664,6 +665,13 @@ export const register: Register = on => {
   // ---------- Jede Nachricht: Skills mitteilen, Fortschritt starten ----------
 
   on('prompt.submit', async ($, e, next) => {
+    // Manche Oberflächen (z. B. VS Code) kennen die Befehle des Hubs nicht und schicken
+    // "/hub" als normalen Text. Dann führt der Hub den Befehl selbst aus.
+    const befehl = e.command === undefined ? /^\/([a-z-]+)(?:\s+([\s\S]*))?$/.exec(e.text.trim()) : null
+    if (befehl !== null && EIGENE_BEFEHLE.includes(befehl[1] ?? '')) {
+      const res = await $.command.run({ command: befehl[1] ?? '', args: (befehl[2] ?? '').trim() })
+      return { drop: res.text ?? 'Erledigt.' }
+    }
     if (e.command !== undefined || e.text.trim().startsWith('/')) {
       return next(e)
     }

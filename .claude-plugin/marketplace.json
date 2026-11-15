@@ -8,7 +8,7 @@
       "name": "snake-hub",
       "source": "./plugins/snake-hub",
       "description": "Schaltzentrale: 16 animierte Themes, Fokus-Timer, Notizen, Tagesziele, Erfolge, Geräusche, 19 Mods und 8 Skills",
-      "version": "0.9.0"
+      "version": "0.9.1"
     },
     {
       "name": "snake-skills",
